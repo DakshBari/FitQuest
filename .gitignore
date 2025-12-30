@@ -1,0 +1,66 @@
+####################################
+# Environment variables (ALL)
+####################################
+.env
+.env.*
+!.env.example
+
+####################################
+# Node.js (ALL projects)
+####################################
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+####################################
+# Next.js / React
+####################################
+.next/
+out/
+build/
+dist/
+.vercel/
+
+####################################
+# Backend build artifacts
+####################################
+coverage/
+logs/
+*.log
+
+####################################
+# TypeScript
+####################################
+*.tsbuildinfo
+next-env.d.ts
+
+####################################
+# Python / ML services
+####################################
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+pip-wheel-metadata/
+*.egg-info/
+
+####################################
+# OS / Editor junk
+####################################
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+####################################
+# Misc
+####################################
+.cache/
+.temp/
+.tmp/

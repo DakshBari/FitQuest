@@ -1,0 +1,283 @@
+"use client"
+
+import { useState, useMemo } from "react"
+import { Button } from "@/components/ui/button"
+import { Edit2, Plus } from "lucide-react"
+import { FuelGauge } from "@/components/kitchen/FuelGauge"
+import { HydrationTracker } from "@/components/kitchen/HydrationTracker"
+import { MealCard } from "@/components/kitchen/MealCard"
+import { FoodSearch } from "@/components/kitchen/FoodSearch"
+import { GoalSettings, GoalType } from "@/components/kitchen/GoalSettings"
+import { AddMealModal } from "@/components/kitchen/AddMealModal"
+
+export default function KitchenPage() {
+  // --- User Profile & Goals ---
+  const [showGoalSettings, setShowGoalSettings] = useState(false)
+  const [profile, setProfile] = useState({
+    weight: 75, // kg
+    height: 180, // cm
+    bodyType: 'mesomorph' as 'ectomorph' | 'mesomorph' | 'endomorph',
+    goal: 'muscle-gain' as GoalType
+  })
+
+  // --- State ---
+  const [viewMode, setViewMode] = useState<'daily' | 'weekly'>('daily')
+  const [searchQuery, setSearchQuery] = useState("")
+  const [undoItem, setUndoItem] = useState<any>(null)
+  const [hydration, setHydration] = useState(1250) // ml
+  
+  // Add Meal Modal State
+  const [isAddMealOpen, setIsAddMealOpen] = useState(false)
+  
+  // Editing state
+  const [editingQuantities, setEditingQuantities] = useState<Record<number, number[]>>({})
+
+  // --- Mock Data ---
+  const [meals, setMeals] = useState([
+    { 
+      id: 1, 
+      name: "Grilled Chicken Breast", 
+      time: "12:30 PM", 
+      calories: 280, 
+      protein: 42, carbs: 0, fats: 8,
+      micros: { fiber: 0, sugar: 0, sodium: 80, cholesterol: 70, vitA: 2, vitC: 0, vitD: 0, iron: 6, calcium: 15 },
+      isFavorite: false,
+      baseQuantity: 100
+    },
+    { 
+      id: 2, 
+      name: "Brown Rice", 
+      time: "12:30 PM", 
+      calories: 215, 
+      protein: 5, carbs: 45, fats: 2,
+      micros: { fiber: 1.6, sugar: 0.4, sodium: 5, cholesterol: 0, vitA: 0, vitC: 0, vitD: 0, iron: 0.8, calcium: 10 },
+      isFavorite: true,
+      baseQuantity: 100
+    },
+    { 
+      id: 3, 
+      name: "Protein Shake", 
+      time: "10:00 AM", 
+      calories: 180, 
+      protein: 30, carbs: 12, fats: 3,
+      micros: { fiber: 2, sugar: 3, sodium: 150, cholesterol: 20, vitA: 10, vitC: 20, vitD: 5, iron: 0, calcium: 200 },
+      isFavorite: true,
+      baseQuantity: 1
+    },
+    { 
+      id: 4, 
+      name: "Oatmeal with Berries", 
+      time: "8:00 AM", 
+      calories: 320, 
+      protein: 12, carbs: 58, fats: 7,
+      micros: { fiber: 8, sugar: 15, sodium: 10, cholesterol: 0, vitA: 5, vitC: 10, vitD: 0, iron: 15, calcium: 20 },
+      isFavorite: false,
+      baseQuantity: 250
+    },
+  ])
+
+  const favorites = meals.filter(m => m.isFavorite)
+
+  // --- Logic & Calculations ---
+  
+  const targets = useMemo(() => {
+    const bmr = 10 * profile.weight + 6.25 * profile.height - 5 * 25 + 5 
+    let tdee = bmr * 1.55 
+    
+    let calorieTarget = tdee
+    let proteinRatio = 0.3
+    let carbRatio = 0.4
+    let fatRatio = 0.3
+
+    if (profile.goal === 'fat-loss') {
+      calorieTarget = tdee - 500
+      proteinRatio = 0.4 
+      carbRatio = 0.3
+      fatRatio = 0.3
+    } else if (profile.goal === 'muscle-gain') {
+      calorieTarget = tdee + 300
+      proteinRatio = 0.35
+      carbRatio = 0.45
+      fatRatio = 0.2
+    }
+
+    return {
+      calories: Math.round(calorieTarget),
+      protein: Math.round((calorieTarget * proteinRatio) / 4),
+      carbs: Math.round((calorieTarget * carbRatio) / 4),
+      fats: Math.round((calorieTarget * fatRatio) / 9),
+      water: 3000
+    }
+  }, [profile])
+
+  const currentTotals = useMemo(() => {
+    return meals.reduce((acc, meal) => {
+      const mult = editingQuantities[meal.id]?.[0] || 1
+      return {
+        calories: acc.calories + (meal.calories * mult),
+        protein: acc.protein + (meal.protein * mult),
+        carbs: acc.carbs + (meal.carbs * mult),
+        fats: acc.fats + (meal.fats * mult),
+      }
+    }, { calories: 0, protein: 0, carbs: 0, fats: 0 })
+  }, [meals, editingQuantities])
+
+  // --- Handlers ---
+
+  const toggleFavorite = (id: number) => {
+    setMeals(meals.map(m => m.id === id ? { ...m, isFavorite: !m.isFavorite } : m))
+  }
+
+  const deleteMeal = (id: number) => {
+    const mealToDelete = meals.find(m => m.id === id)
+    setMeals(meals.filter(m => m.id !== id))
+    setUndoItem(mealToDelete)
+    setTimeout(() => setUndoItem(null), 5000)
+  }
+
+  const handleUndo = () => {
+    if (undoItem) {
+      setMeals([...meals, undoItem])
+      setUndoItem(null)
+    }
+  }
+
+  const duplicateMeal = (id: number) => {
+    const original = meals.find(m => m.id === id)
+    if (original) {
+      const newMeal = { ...original, id: Date.now() }
+      setMeals([...meals, newMeal])
+    }
+  }
+
+  const addWater = (amount: number) => {
+    setHydration(prev => Math.min(prev + amount, targets.water + 1000))
+  }
+
+  const handleAddMeal = (newMeal: any) => {
+    setMeals([newMeal, ...meals]) // Add to top
+  }
+
+  // --- Render ---
+
+  return (
+    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      {undoItem && (
+        <div className="fixed bottom-4 right-4 bg-primary text-primary-foreground p-4 rounded-lg shadow-lg flex items-center gap-3 animate-in slide-in-from-bottom-5 z-50">
+          <span>Deleted {undoItem.name}</span>
+          <Button variant="outline" size="sm" onClick={handleUndo}>Undo</Button>
+          <Button variant="ghost" size="icon" onClick={() => setUndoItem(null)} className="ml-2 h-6 w-6"><div className="h-3 w-3 rounded-full bg-white/50"/></Button>
+        </div>
+      )}
+
+      {showGoalSettings && (
+        <GoalSettings 
+          profile={profile} 
+          setProfile={setProfile} 
+          onClose={() => setShowGoalSettings(false)} 
+        />
+      )}
+
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground font-orbitron tracking-wider">THE KITCHEN</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {profile.goal === 'muscle-gain' ? "Mode: Hypertrophy (Bulk)" : 
+             profile.goal === 'fat-loss' ? "Mode: Cutting (Deficit)" : "Mode: Maintenance"}
+          </p>
+        </div>
+        <div className="flex gap-2">
+           <Button variant={viewMode === 'daily' ? 'default' : 'outline'} onClick={() => setViewMode('daily')} className="font-orbitron text-xs px-4">TODAY</Button>
+           <Button variant={viewMode === 'weekly' ? 'default' : 'outline'} onClick={() => setViewMode('weekly')} className="font-orbitron text-xs px-4">WEEKLY</Button>
+           <Button variant="ghost" onClick={() => setShowGoalSettings(true)} className="text-primary ml-2">
+            <Edit2 className="h-4 w-4 mr-2"/> Edit Goals
+           </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        
+        {/* LEFT COLUMN */}
+        <div className="xl:col-span-5 space-y-6">
+          <FuelGauge 
+            current={currentTotals} 
+            target={targets} 
+            goal={profile.goal} 
+            viewMode={viewMode}
+          />
+          
+          <HydrationTracker 
+            current={hydration} 
+            target={targets.water} 
+            onAdd={addWater} 
+          />
+        </div>
+
+        {/* RIGHT COLUMN */}
+        <div className="xl:col-span-7 space-y-6">
+          <FoodSearch 
+            searchQuery={searchQuery} 
+            setSearchQuery={setSearchQuery} 
+            favorites={favorites}
+          />
+
+          <div className="bg-card/80 border border-border rounded-2xl min-h-[500px] flex flex-col">
+            {/* Log Header */}
+            <div className="p-6 border-b border-border flex justify-between items-center bg-muted/20">
+              <h2 className="text-lg font-bold text-foreground">Today's Log</h2>
+              <Button onClick={() => setIsAddMealOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground h-8 px-3 text-xs font-semibold">
+                <Plus className="h-3.5 w-3.5 mr-2"/> Add Meal
+              </Button>
+            </div>
+
+            {/* Log List */}
+            <div className="p-0">
+                {meals.length > 0 ? (
+                    meals.map((meal) => (
+                    <MealCard 
+                        key={meal.id}
+                        meal={meal}
+                        onFavorite={() => toggleFavorite(meal.id)}
+                        onDelete={() => deleteMeal(meal.id)}
+                        onDuplicate={() => duplicateMeal(meal.id)}
+                        isEditing={editingQuantities[meal.id] !== undefined}
+                        onEditStart={() => setEditingQuantities({...editingQuantities, [meal.id]: [1]})}
+                        onEditSave={() => {
+                            setEditingQuantities(prev => {
+                                const next = {...prev}
+                                delete next[meal.id]
+                                return next
+                            })
+                        }}
+                        onEditCancel={() => {
+                            setEditingQuantities(prev => {
+                                const next = {...prev}
+                                delete next[meal.id]
+                                return next
+                            })
+                        }}
+                        editQuantity={editingQuantities[meal.id] || [1]}
+                        onQuantityChange={(val) => setEditingQuantities({...editingQuantities, [meal.id]: val})}
+                        goal={profile.goal}
+                    />
+                    ))
+                ) : (
+                    <div className="h-64 flex flex-col items-center justify-center text-muted-foreground">
+                        <p className="text-sm">No meals logged yet.</p>
+                        <Button variant="link" onClick={() => setIsAddMealOpen(true)} className="text-primary">Log your first meal</Button>
+                    </div>
+                )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Add Meal Modal */}
+      <AddMealModal 
+        isOpen={isAddMealOpen} 
+        onClose={() => setIsAddMealOpen(false)} 
+        onAdd={handleAddMeal} 
+      />
+    </div>
+  )
+}
