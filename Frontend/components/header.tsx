@@ -14,23 +14,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useSidebar } from "@/components/sidebar-context"
+import { useAuth } from "@/contexts/AuthContext"
 import { cn } from "@/lib/utils"
 
 export function Header() {
   const { theme, setTheme } = useTheme()
   const { collapsed } = useSidebar()
   const router = useRouter()
-  
-  // State to store user data
-  const [user, setUser] = useState<any>(null)
-
-  // Load user from localStorage on mount
-  useEffect(() => {
-    const userData = localStorage.getItem('user')
-    if (userData) {
-      setUser(JSON.parse(userData))
-    }
-  }, [])
+  const { user, logout } = useAuth()
 
   // Robust Initials Function
   const getInitials = (name?: string) => {
@@ -50,10 +41,7 @@ export function Header() {
   const xpPercentage = Math.min((currentXp / xpForNextLevel) * 100, 100)
 
   const handleLogout = () => {
-    // Clear auth data
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    router.push('/login')
+    logout() // Use the proper logout function from AuthContext
   }
 
   // If no user data loaded yet, use defaults
@@ -101,7 +89,7 @@ export function Header() {
           <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg border border-border">
             <Coins className="h-4 w-4 text-amber-500" />
             <span className="text-foreground font-semibold">
-              {user?.territories || 0}
+              {user?.stats?.territories || 0}
             </span>
           </div>
 
@@ -121,7 +109,6 @@ export function Header() {
             <DropdownMenuTrigger asChild>
               <button className="relative focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full">
                 <Avatar className="h-10 w-10 border-2 border-primary/50 cursor-pointer hover:border-primary transition-colors">
-                  {/* FIX: Only render AvatarImage if user actually has an avatar URL */}
                   {user?.avatar ? (
                     <AvatarImage
                       src={user.avatar}
@@ -138,24 +125,23 @@ export function Header() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               <div className="px-2 py-1.5 text-sm font-semibold text-foreground">
-                {user?.username}
+                {user?.username || 'User'}
               </div>
               <div className="px-2 py-1 text-xs text-muted-foreground">
-                {user?.email}
+                {user?.email || 'user@fitquest.com'}
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => router.push("/settings")}
+                onClick={() => router.push("/profile")}
                 className="cursor-pointer"
               >
                 <Settings className="mr-2 h-4 w-4" />
-                Settings
+                Profile
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleLogout}
-                variant="destructive"
-                className="cursor-pointer"
+                className="cursor-pointer text-red-600 focus:text-red-600"
               >
                 <LogOut className="mr-2 h-4 w-4" />
                 Logout

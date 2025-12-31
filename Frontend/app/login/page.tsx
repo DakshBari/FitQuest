@@ -27,7 +27,11 @@ export default function LoginPage() {
       const data = await login(email, password)
       authLogin(data.token, data.user)
       toast.success("Welcome back to FitQuest!")
-      router.push('/dashboard')
+      
+      // Check for redirect parameter
+      const urlParams = new URLSearchParams(window.location.search)
+      const redirectTo = urlParams.get('redirect') || '/dashboard'
+      router.push(redirectTo)
     } catch (err: any) {
       toast.error(err.message || 'Failed to login')
     } finally {

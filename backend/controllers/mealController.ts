@@ -41,15 +41,21 @@ export const getDailySummary = async (req: AuthRequest, res: Response) => {
 
     res.json({
       status: 'success',
-      summary: {
-        ...summary,
-        goals,
-        progress: {
-          calories: (summary.totalCalories / goals.calories) * 100,
-          protein: (summary.totalProtein / goals.protein) * 100,
-          carbs: (summary.totalCarbs / goals.carbs) * 100,
-          fats: (summary.totalFats / goals.fats) * 100
-        }
+      totalCalories: summary.totalCalories,
+      targetCalories: goals.calories,
+      protein: summary.totalProtein,
+      carbs: summary.totalCarbs,
+      fats: summary.totalFats, // Changed from 'fat' to 'fats'
+      targetProtein: goals.protein,
+      targetCarbs: goals.carbs,
+      targetFats: goals.fats, // Changed from 'targetFat' to 'targetFats'
+      meals: summary.meals,
+      goals,
+      progress: {
+        calories: (summary.totalCalories / goals.calories) * 100,
+        protein: (summary.totalProtein / goals.protein) * 100,
+        carbs: (summary.totalCarbs / goals.carbs) * 100,
+        fats: (summary.totalFats / goals.fats) * 100
       }
     });
   } catch (error) {

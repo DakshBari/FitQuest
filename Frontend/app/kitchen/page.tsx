@@ -13,10 +13,11 @@ import { GoalSettings, GoalType } from "@/components/kitchen/GoalSettings"
 import { AddMealModal } from "@/components/kitchen/AddMealModal"
 import { MealHistory } from "@/components/kitchen/MealHistory"
 import { MealAnalytics } from "@/components/kitchen/MealAnalytics"
-import { mealsApi, hydrationApi } from "@/lib/api"
+import { useApi } from "@/hooks/useApi"
 import { getCurrentTime } from "@/lib/timeUtils"
 
 export default function KitchenPage() {
+  const api = useApi() // Add this line
   const [showGoalSettings, setShowGoalSettings] = useState(false)
   const [profile, setProfile] = useState({
     weight: 75, 
@@ -71,13 +72,18 @@ export default function KitchenPage() {
   const fetchDailyData = async () => {
     setIsLoading(true)
     try {
-      const data = await mealsApi.getDaily()
-      setMeals(data.summary.meals)
-      setDailyStats(data.summary)
-      setGoals((prevGoals) => ({
-        ...prevGoals,    
-        ...data.summary.goals 
-      }))
+      const data = await api.meals.getDaily()
+      setMeals(data.meals || [])
+      setDailyStats({
+        totalCalories: data.totalCalories || 0,
+        targetCalories: data.targetCalories || 2200,
+        totalProtein: data.protein || 0,
+        totalCarbs: data.carbs || 0,
+        totalFats: data.fats || 0,
+        targetProtein: data.targetProtein || 150,
+        targetCarbs: data.targetCarbs || 200,
+        targetFats: data.targetFats || 70
+      })
     } catch (error) {
       console.error("Failed to fetch daily data", error)
     } finally {
@@ -88,8 +94,8 @@ export default function KitchenPage() {
   // NEW: Fetch all meals to populate global favorites
   const fetchFavorites = async () => {
     try {
-      const data = await mealsApi.getFavorites()
-      setAllMeals(data.favorites);
+      const data = await api.meals.getFavorites()
+      setAllMeals(data.favorites || []);
     } catch (error) {
       console.error("Failed to fetch favorites", error)
     }
@@ -99,8 +105,8 @@ export default function KitchenPage() {
     setIsLoading(true)
     try {
       const [mealsData, hydrationData] = await Promise.all([
-        mealsApi.getWeeklyDetailed(),
-        hydrationApi.getWeekly()
+        api.call('/api/meals/weekly-detailed?timezoneOffset=' + new Date().getTimezoneOffset()),
+        api.call('/api/hydration/weekly?timezoneOffset=' + new Date().getTimezoneOffset())
       ])
       
       setWeeklyMeals(mealsData.weeklyMeals)
@@ -109,7 +115,7 @@ export default function KitchenPage() {
       setWeeklyHydration(hydrationData.weeklyHydration)
       
       // Also get the simple weekly data for fuel gauge
-      const simpleWeeklyData = await mealsApi.getWeekly()
+      const simpleWeeklyData = await api.call('/api/meals/weekly?timezoneOffset=' + new Date().getTimezoneOffset())
       setWeeklyData(simpleWeeklyData.weeklyData)
     } catch (error) {
       console.error("Failed to fetch weekly data", error)
@@ -120,8 +126,8 @@ export default function KitchenPage() {
 
   const fetchHydration = async () => {
     try {
-      const data = await hydrationApi.getToday()
-      setHydration(data.hydration.amount)
+      const data = await api.hydration.getToday()
+      setHydration(data.totalIntake || 0)
     } catch (error) {
       console.error("Failed to fetch hydration", error)
     }
@@ -144,7 +150,7 @@ export default function KitchenPage() {
   const handleAddMeal = async (newMeal: any) => {
     setIsLoading(true)
     try {
-      await mealsApi.add(newMeal)
+      await api.meals.add(newMeal)
       await fetchDailyData()
       setIsAddMealOpen(false)
     } catch (error) {
@@ -159,7 +165,7 @@ export default function KitchenPage() {
     setIsLoading(true)
     try {
       const currentTime = getCurrentTime()
-      await mealsApi.addFavoriteToLog(favorite._id || favorite.id, {
+      await api.meals.addFavoriteToLog(favorite._id || favorite.id, {
         date: new Date().toISOString(),
         time: currentTime,
         quantity: customQuantity || favorite.quantity || favorite.baseQuantity
@@ -175,7 +181,7 @@ export default function KitchenPage() {
   const handleDeleteMeal = async (id: string) => {
     setIsLoading(true)
     try {
-      await mealsApi.delete(id)
+      await api.meals.delete(id)
       await fetchDailyData()
     } catch (error) {
       console.error("Failed to delete meal", error)
@@ -200,7 +206,7 @@ export default function KitchenPage() {
         isFavorite: false, // Duplicate is not favorited by default
       };
       
-      await mealsApi.add(newMeal)
+      await api.meals.add(newMeal)
       await fetchDailyData()
       await fetchFavorites() // Refresh favorites list too
     } catch (error) {
@@ -213,7 +219,7 @@ export default function KitchenPage() {
   // NEW: Handle Toggle Favorite
   const handleToggleFavorite = async (id: string, currentState: boolean) => {
     try {
-      await mealsApi.toggleFavorite(id)
+      await api.meals.toggleFavorite(id)
       // Update local states
       await fetchDailyData()
       await fetchFavorites()
@@ -266,7 +272,7 @@ export default function KitchenPage() {
     if (!updatedMeal) return;
 
     try {
-      await mealsApi.update(id, {
+      await api.meals.update(id, {
         calories: updatedMeal.calories,
         protein: updatedMeal.protein,
         carbs: updatedMeal.carbs,
@@ -283,7 +289,7 @@ export default function KitchenPage() {
 
   const addWater = async (amount: number) => {
     try {
-      await hydrationApi.add(amount)
+      await api.hydration.add(amount)
       setHydration(prev => Math.min(prev + amount, goals.water + 1000))
     } catch (error) {
       console.error("Failed to add water", error)
@@ -293,7 +299,7 @@ export default function KitchenPage() {
   const favorites = meals.filter(m => m.isFavorite)
 
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-7xl mx-auto">
+    <div className="min-h-screen flex flex-col bg-background">
       {showGoalSettings && (
         <GoalSettings 
           profile={profile} 
@@ -302,217 +308,283 @@ export default function KitchenPage() {
         />
       )}
 
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground font-orbitron tracking-wider">THE KITCHEN</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {profile.goal === 'muscle-gain' ? "Mode: Hypertrophy (Bulk)" : 
-             profile.goal === 'fat-loss' ? "Mode: Cutting (Deficit)" : "Mode: Maintenance"}
-          </p>
-        </div>
-        <div className="flex gap-2">
-           <Button 
-            variant="ghost" 
-            onClick={() => setShowGoalSettings(true)} 
-            className="text-primary"
-            disabled={isLoading}
-          >
-            <Edit2 className="h-4 w-4 mr-2"/> Edit Goals
-           </Button>
-           <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={fetchDailyData}
-            disabled={isLoading}
-           >
-             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-           </Button>
+      {/* Modern Header */}
+      <div className="flex-shrink-0 px-6 pt-6 pb-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-green-500/25 dark:shadow-green-500/10">
+                <Utensils className="w-6 h-6 text-white" />
+              </div>
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-background animate-pulse"></div>
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground via-green-500 to-emerald-500 bg-clip-text text-transparent font-inter tracking-tight">
+                The Kitchen
+              </h1>
+              <p className="text-muted-foreground font-medium">
+                {profile.goal === 'muscle-gain' ? "Mode: Hypertrophy (Bulk)" : 
+                 profile.goal === 'fat-loss' ? "Mode: Cutting (Deficit)" : "Mode: Maintenance"}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+             <Button 
+              variant="outline" 
+              onClick={() => setShowGoalSettings(true)} 
+              className="border-border/50 text-muted-foreground hover:text-foreground hover:bg-gradient-to-r hover:from-green-500/20 hover:to-emerald-500/20 hover:border-green-500/30 bg-background/30 backdrop-blur-sm font-medium rounded-xl transition-all duration-200"
+              disabled={isLoading}
+            >
+              <Edit2 className="h-4 w-4 mr-2"/> Edit Goals
+             </Button>
+             <Button 
+              variant="outline" 
+              size="icon"
+              onClick={fetchDailyData}
+              disabled={isLoading}
+              className="border-border/50 hover:bg-background/50 backdrop-blur-sm rounded-xl transition-all duration-200 text-muted-foreground hover:text-foreground"
+             >
+               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+             </Button>
+          </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="meal" className="w-full">
-        <TabsList className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 p-1 rounded-lg w-full md:w-auto">
-          <TabsTrigger value="meal" className="gap-2">
-            <Utensils className="w-4 h-4" />
-            Meal
-          </TabsTrigger>
-          <TabsTrigger value="history" className="gap-2">
-            <History className="w-4 h-4" />
-            History
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="gap-2">
-            <BarChart3 className="w-4 h-4" />
-            Analytics
-          </TabsTrigger>
-        </TabsList>
+      {/* Main Content */}
+      <div className="flex-1 px-6 pb-6">
+        {/* Tabs */}
+        <Tabs defaultValue="meal" className="w-full">
+          <TabsList className="bg-card/80 backdrop-blur-xl border border-border/50 p-1 rounded-2xl w-full md:w-auto shadow-lg shadow-primary/5 mb-6">
+            <TabsTrigger value="meal" className="gap-2 rounded-xl font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25">
+              <Utensils className="w-4 h-4" />
+              Meal
+            </TabsTrigger>
+            <TabsTrigger value="history" className="gap-2 rounded-xl font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25">
+              <History className="w-4 h-4" />
+              History
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-2 rounded-xl font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25">
+              <BarChart3 className="w-4 h-4" />
+              Analytics
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Meal Tab Content */}
-        <TabsContent value="meal" className="mt-6">
-          {/* Daily/Weekly Toggle for Meal Tab */}
-          <div className="flex gap-2 w-fit mb-4">
-            <Button 
-              variant={viewMode === 'daily' ? 'default' : 'outline'} 
-              onClick={() => setViewMode('daily')} 
-              className="font-orbitron text-xs px-4"
-              disabled={isLoading}
-            >TODAY</Button>
-            <Button 
-              variant={viewMode === 'weekly' ? 'default' : 'outline'} 
-              onClick={() => setViewMode('weekly')} 
-              className="font-orbitron text-xs px-4"
-              disabled={isLoading}
-            >WEEKLY</Button>
-          </div>
+          {/* Meal Tab Content */}
+          <TabsContent value="meal" className="mt-0">
+            {/* Daily/Weekly Toggle for Meal Tab */}
+            <div className="flex gap-2 w-fit mb-6">
+              <Button 
+                variant={viewMode === 'daily' ? 'default' : 'outline'} 
+                onClick={() => setViewMode('daily')} 
+                className={`font-medium text-xs px-6 rounded-xl transition-all duration-200 ${
+                  viewMode === 'daily' 
+                    ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/25" 
+                    : "border-border/50 text-muted-foreground hover:text-foreground hover:bg-gradient-to-r hover:from-green-500/20 hover:to-emerald-500/20 hover:border-green-500/30 bg-background/30 backdrop-blur-sm"
+                }`}
+                disabled={isLoading}
+              >TODAY</Button>
+              <Button 
+                variant={viewMode === 'weekly' ? 'default' : 'outline'} 
+                onClick={() => setViewMode('weekly')} 
+                className={`font-medium text-xs px-6 rounded-xl transition-all duration-200 ${
+                  viewMode === 'weekly' 
+                    ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/25" 
+                    : "border-border/50 text-muted-foreground hover:text-foreground hover:bg-gradient-to-r hover:from-green-500/20 hover:to-emerald-500/20 hover:border-green-500/30 bg-background/30 backdrop-blur-sm"
+                }`}
+                disabled={isLoading}
+              >WEEKLY</Button>
+            </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-            <div className="xl:col-span-7 space-y-4 order-2 xl:order-1">
-              <FoodSearch 
-                searchQuery={searchQuery} 
-                setSearchQuery={setSearchQuery} 
-                favorites={allMeals} // Pass global favorites
-                onAddMeal={handleAddFavoriteToLog} // Pass favorite-to-log handler
-                onToggleFavorite={(id, fav) => handleToggleFavorite(id, fav)} // Pass toggle handler
-              />
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+              <div className="xl:col-span-7 space-y-6 order-2 xl:order-1">
+                <FoodSearch 
+                  searchQuery={searchQuery} 
+                  setSearchQuery={setSearchQuery} 
+                  favorites={allMeals} // Pass global favorites
+                  onAddMeal={handleAddFavoriteToLog} // Pass favorite-to-log handler
+                  onToggleFavorite={(id, fav) => handleToggleFavorite(id, fav)} // Pass toggle handler
+                />
 
-              <div className="bg-card/80 border border-border rounded-2xl min-h-[500px] flex flex-col shadow-sm">
-                <div className="p-5 border-b border-border flex justify-between items-center bg-muted/20">
-                  <h2 className="text-lg font-bold text-foreground">
-                    {viewMode === 'daily' ? "Today's Log" : "Weekly Overview"}
-                  </h2>
-                  {viewMode === 'daily' && (
-                    <Button onClick={() => setIsAddMealOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground h-8 px-3 text-xs font-semibold shadow-sm">
-                      <Plus className="h-3.5 w-3.5 mr-2"/> Add Meal
-                    </Button>
-                  )}
-                </div>
+                <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5">
+                  <div className="p-6 border-b border-border bg-gradient-to-r from-green-500/10 via-transparent to-emerald-500/10">
+                    <div className="flex justify-between items-center">
+                      <h2 className="text-xl font-bold text-foreground font-inter">
+                        {viewMode === 'daily' ? "Today's Log" : "Weekly Overview"}
+                      </h2>
+                      {viewMode === 'daily' && (
+                        <Button 
+                          onClick={() => setIsAddMealOpen(true)} 
+                          className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white border-0 shadow-lg shadow-green-500/25 rounded-xl font-medium text-sm transition-all duration-200 hover:shadow-xl hover:shadow-green-500/30"
+                        >
+                          <Plus className="h-4 w-4 mr-2"/> Add Meal
+                        </Button>
+                      )}
+                    </div>
+                  </div>
 
-                <div className="p-0">
-                  {viewMode === 'daily' ? (
-                    // Daily View
-                    <>
-                      {isLoading && meals.length === 0 ? (
+                  <div className="p-0">
+                    {viewMode === 'daily' ? (
+                      // Daily View
+                      <>
+                        {isLoading && meals.length === 0 ? (
+                            <div className="h-64 flex items-center justify-center text-muted-foreground">
+                                <div className="flex items-center space-x-3">
+                                  <div className="flex space-x-1">
+                                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce"></div>
+                                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                  </div>
+                                  <span className="text-sm font-medium">Loading meals...</span>
+                                </div>
+                            </div>
+                        ) : meals.length > 0 ? (
+                            <div className="space-y-0">
+                              {meals.map((meal) => {
+                                  let initialMultiplier = 1;
+                                  if (meal.quantity && meal.baseQuantity) {
+                                      initialMultiplier = meal.quantity / meal.baseQuantity;
+                                  }
+                                  
+                                  return (
+                                      <MealCard 
+                                          key={meal._id}
+                                          meal={{
+                                            ...meal,
+                                            id: meal._id,
+                                            time: meal.time,
+                                            calories: meal.calories,
+                                            protein: meal.protein,
+                                            carbs: meal.carbs,
+                                            fats: meal.fats,
+                                            micros: meal.micros || {},
+                                            isFavorite: meal.isFavorite,
+                                            baseQuantity: meal.baseQuantity || 100,
+                                            quantity: meal.quantity
+                                          }}
+                                          onFavorite={() => handleToggleFavorite(meal._id, meal.isFavorite)} 
+                                          onDelete={() => handleDeleteMeal(meal._id)}
+                                          onDuplicate={() => handleDuplicate(meal)} 
+                                          isEditing={editingQuantities[meal._id] !== undefined}
+                                          onEditStart={() => setEditingQuantities({...editingQuantities, [meal._id]: [initialMultiplier]})}
+                                          onEditSave={(id, mult) => handleEditSave(id, mult)}
+                                          onEditCancel={() => {
+                                              setEditingQuantities(prev => { const n = {...prev}; delete n[meal._id]; return n; })
+                                              setDailyStats(recalculateStats(meals)); 
+                                          }}
+                                          editQuantity={editingQuantities[meal._id] || [initialMultiplier]}
+                                          onQuantityChange={(val) => setEditingQuantities({...editingQuantities, [meal._id]: val})}
+                                          onLiveEdit={handleLiveEdit}
+                                          goal={profile.goal}
+                                      />
+                                  )
+                              })}
+                            </div>
+                        ) : (
+                            <div className="h-64 flex flex-col items-center justify-center text-muted-foreground bg-gradient-to-br from-orange-500/5 to-red-500/5 m-6 rounded-2xl border border-orange-500/20">
+                                <Utensils className="h-16 w-16 mb-4 opacity-30" />
+                                <p className="text-sm mb-2 font-medium">No meals logged yet.</p>
+                                <Button variant="link" onClick={() => setIsAddMealOpen(true)} className="text-orange-500 hover:text-orange-600 h-auto p-0 font-medium">Log your first meal</Button>
+                            </div>
+                        )}
+                      </>
+                    ) : (
+                      // Weekly View
+                      <>
+                        {isLoading ? (
                           <div className="h-64 flex items-center justify-center text-muted-foreground">
-                              <span className="animate-pulse">Loading...</span>
+                              <div className="flex items-center space-x-3">
+                                <div className="flex space-x-1">
+                                  <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce"></div>
+                                  <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                                  <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                </div>
+                                <span className="text-sm font-medium">Loading weekly data...</span>
+                              </div>
                           </div>
-                      ) : meals.length > 0 ? (
-                          meals.map((meal) => {
-                              let initialMultiplier = 1;
-                              if (meal.quantity && meal.baseQuantity) {
-                                  initialMultiplier = meal.quantity / meal.baseQuantity;
-                              }
-                              
-                              return (
-                                  <MealCard 
-                                      key={meal._id}
-                                      meal={{
-                                        ...meal,
-                                        id: meal._id,
-                                        time: meal.time,
-                                        calories: meal.calories,
-                                        protein: meal.protein,
-                                        carbs: meal.carbs,
-                                        fats: meal.fats,
-                                        micros: meal.micros || {},
-                                        isFavorite: meal.isFavorite,
-                                        baseQuantity: meal.baseQuantity || 100,
-                                        quantity: meal.quantity
-                                      }}
-                                      onFavorite={() => handleToggleFavorite(meal._id, meal.isFavorite)} 
-                                      onDelete={() => handleDeleteMeal(meal._id)}
-                                      onDuplicate={() => handleDuplicate(meal)} 
-                                      isEditing={editingQuantities[meal._id] !== undefined}
-                                      onEditStart={() => setEditingQuantities({...editingQuantities, [meal._id]: [initialMultiplier]})}
-                                      onEditSave={(id, mult) => handleEditSave(id, mult)}
-                                      onEditCancel={() => {
-                                          setEditingQuantities(prev => { const n = {...prev}; delete n[meal._id]; return n; })
-                                          setDailyStats(recalculateStats(meals)); 
-                                      }}
-                                      editQuantity={editingQuantities[meal._id] || [initialMultiplier]}
-                                      onQuantityChange={(val) => setEditingQuantities({...editingQuantities, [meal._id]: val})}
-                                      onLiveEdit={handleLiveEdit}
-                                      goal={profile.goal}
-                                  />
-                              )
-                          })
-                      ) : (
-                          <div className="h-64 flex flex-col items-center justify-center text-muted-foreground bg-muted/10">
-                              <p className="text-sm mb-2">No meals logged yet.</p>
-                              <Button variant="link" onClick={() => setIsAddMealOpen(true)} className="text-primary h-auto p-0">Log your first meal</Button>
+                        ) : weeklyMeals && weeklyTotals && weeklyGoals ? (
+                          <div className="p-6">
+                            <WeeklyMealCard 
+                              weeklyMeals={weeklyMeals}
+                              weeklyTotals={weeklyTotals}
+                              weeklyGoals={weeklyGoals}
+                            />
                           </div>
-                      )}
-                    </>
-                  ) : (
-                    // Weekly View
-                    <>
-                      {isLoading ? (
-                        <div className="h-64 flex items-center justify-center text-muted-foreground">
-                            <span className="animate-pulse">Loading weekly data...</span>
-                        </div>
-                      ) : weeklyMeals && weeklyTotals && weeklyGoals ? (
-                        <WeeklyMealCard 
-                          weeklyMeals={weeklyMeals}
-                          weeklyTotals={weeklyTotals}
-                          weeklyGoals={weeklyGoals}
-                        />
-                      ) : (
-                        <div className="h-64 flex flex-col items-center justify-center text-muted-foreground bg-muted/10">
-                            <p className="text-sm mb-2">No weekly data available.</p>
-                        </div>
-                      )}
-                    </>
-                  )}
+                        ) : (
+                          <div className="h-64 flex flex-col items-center justify-center text-muted-foreground bg-gradient-to-br from-orange-500/5 to-red-500/5 m-6 rounded-2xl border border-orange-500/20">
+                              <BarChart3 className="h-16 w-16 mb-4 opacity-30" />
+                              <p className="text-sm mb-2 font-medium">No weekly data available.</p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
+
+              <div className="xl:col-span-5 space-y-6 order-1 xl:order-2">
+                  <HydrationTracker 
+                      current={hydration} 
+                      target={goals.water} 
+                      onAdd={addWater}
+                      viewMode={viewMode}
+                      weeklyData={weeklyHydration}
+                      weeklyTotal={weeklyHydration.reduce((sum, day) => sum + day.amount, 0)}
+                  />
+                  <FuelGauge 
+                      current={viewMode === 'daily' ? (dailyStats ? {
+                          calories: dailyStats.totalCalories,
+                          protein: dailyStats.totalProtein,
+                          carbs: dailyStats.totalCarbs,
+                          fats: dailyStats.totalFats
+                      } : { calories: 0, protein: 0, carbs: 0, fats: 0 }) : (weeklyTotals || { calories: 0, protein: 0, carbs: 0, fats: 0 })} 
+                      target={viewMode === 'daily' ? goals : (weeklyGoals || {
+                        calories: goals.calories * 7,
+                        protein: goals.protein * 7,
+                        carbs: goals.carbs * 7,
+                        fats: goals.fats * 7,
+                        water: goals.water * 7
+                      })} 
+                      goal={profile.goal} 
+                      viewMode={viewMode}
+                      weeklyData={weeklyData}
+                  />
+              </div>
             </div>
+          </TabsContent>
 
-            <div className="xl:col-span-5 space-y-4 order-1 xl:order-2">
-                <HydrationTracker 
-                    current={hydration} 
-                    target={goals.water} 
-                    onAdd={addWater}
-                    viewMode={viewMode}
-                    weeklyData={weeklyHydration}
-                    weeklyTotal={weeklyHydration.reduce((sum, day) => sum + day.amount, 0)}
+          {/* History Tab Content */}
+          <TabsContent value="history" className="mt-0">
+            <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5">
+              <div className="p-6 border-b border-border bg-gradient-to-r from-green-500/10 via-transparent to-emerald-500/10">
+                <h2 className="text-xl font-bold text-foreground font-inter">Meal History</h2>
+                <p className="text-sm text-muted-foreground mt-1">Track your nutrition journey</p>
+              </div>
+              <div className="p-6">
+                <MealHistory 
+                  goals={goals}
+                  onToggleFavorite={handleToggleFavorite}
                 />
-                <FuelGauge 
-                    current={viewMode === 'daily' ? (dailyStats ? {
-                        calories: dailyStats.totalCalories,
-                        protein: dailyStats.totalProtein,
-                        carbs: dailyStats.totalCarbs,
-                        fats: dailyStats.totalFats
-                    } : { calories: 0, protein: 0, carbs: 0, fats: 0 }) : (weeklyTotals || { calories: 0, protein: 0, carbs: 0, fats: 0 })} 
-                    target={viewMode === 'daily' ? goals : (weeklyGoals || {
-                      calories: goals.calories * 7,
-                      protein: goals.protein * 7,
-                      carbs: goals.carbs * 7,
-                      fats: goals.fats * 7,
-                      water: goals.water * 7
-                    })} 
-                    goal={profile.goal} 
-                    viewMode={viewMode}
-                    weeklyData={weeklyData}
-                />
+              </div>
             </div>
-          </div>
-        </TabsContent>
+          </TabsContent>
 
-        {/* History Tab Content */}
-        <TabsContent value="history" className="mt-6">
-          <MealHistory 
-            goals={goals}
-            onToggleFavorite={handleToggleFavorite}
-          />
-        </TabsContent>
-
-        {/* Analytics Tab Content */}
-        <TabsContent value="analytics" className="mt-6">
-          <MealAnalytics 
-            goals={goals}
-            profile={profile}
-          />
-        </TabsContent>
-      </Tabs>
+          {/* Analytics Tab Content */}
+          <TabsContent value="analytics" className="mt-0">
+            <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5">
+              <div className="p-6 border-b border-border bg-gradient-to-r from-green-500/10 via-transparent to-emerald-500/10">
+                <h2 className="text-xl font-bold text-foreground font-inter">Nutrition Analytics</h2>
+                <p className="text-sm text-muted-foreground mt-1">Insights and trends</p>
+              </div>
+              <div className="p-6">
+                <MealAnalytics 
+                  goals={goals}
+                  profile={profile}
+                />
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
 
       <AddMealModal 
         isOpen={isAddMealOpen} 

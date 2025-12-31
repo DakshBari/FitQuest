@@ -312,7 +312,7 @@ export function MealAnalytics({ goals, profile }: MealAnalyticsProps) {
                   </div>
                 </Card>
 
-                <Card className="p-4 bg-gradient-to-br from-orange-500/10 to-orange-600/5 border-orange-500/20">
+                <Card className="p-4 bg-gradient-to-br from-green-500/10 to-emerald-600/5 border-green-500/20">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Goal Adherence</p>
@@ -506,7 +506,7 @@ export function MealAnalytics({ goals, profile }: MealAnalyticsProps) {
                   </div>
                 </Card>
 
-                <Card className="p-4 bg-gradient-to-br from-orange-500/10 to-orange-600/5 border-orange-500/20">
+                <Card className="p-4 bg-gradient-to-br from-green-500/10 to-emerald-600/5 border-green-500/20">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Goal Progress</p>

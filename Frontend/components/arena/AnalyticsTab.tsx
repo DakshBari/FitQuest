@@ -132,108 +132,108 @@ export function AnalyticsTab() {
 
   if (!isAuthenticated) {
     return (
-      <Card className="p-12 text-center bg-white dark:bg-black/40 border-gray-200 dark:border-white/10">
-        <p className="text-gray-600 dark:text-gray-400">Please log in to view analytics</p>
-      </Card>
+      <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5 p-12 text-center">
+        <p className="text-muted-foreground">Please log in to view analytics</p>
+      </div>
     )
   }
 
   if (isLoading) {
     return (
-      <Card className="p-12 text-center bg-white dark:bg-black/40 border-gray-200 dark:border-white/10">
-        <Loader2 className="w-8 h-8 mx-auto animate-spin text-primary mb-4" />
-        <p className="text-gray-600 dark:text-gray-400">Loading analytics...</p>
-      </Card>
+      <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5 p-12 text-center">
+        <Loader2 className="w-8 h-8 mx-auto animate-spin text-red-500 mb-4" />
+        <p className="text-muted-foreground">Loading analytics...</p>
+      </div>
     )
   }
 
   if (!stats || workouts.length === 0) {
     return (
-      <Card className="p-12 text-center bg-white dark:bg-black/40 border-gray-200 dark:border-white/10">
-        <Dumbbell className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-        <p className="text-gray-600 dark:text-gray-400">No workout data available</p>
-        <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+      <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5 p-12 text-center">
+        <Dumbbell className="w-12 h-12 mx-auto text-muted-foreground opacity-30 mb-4" />
+        <p className="text-muted-foreground font-medium">No workout data available</p>
+        <p className="text-sm text-muted-foreground/70 mt-2">
           Start logging workouts to see analytics
         </p>
-      </Card>
+      </div>
     )
   }
   return (
     <div className="w-full space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white font-orbitron">Analytics & Progress</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        <h2 className="text-2xl font-bold text-foreground font-inter">Analytics & Progress</h2>
+        <p className="text-sm text-muted-foreground mt-1">
           Track your fitness journey with detailed analytics
         </p>
       </div>
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4 bg-white dark:bg-black/40 border-gray-200 dark:border-white/10">
+        <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-lg shadow-primary/5 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Volume</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+              <p className="text-sm text-muted-foreground">Total Volume</p>
+              <p className="text-2xl font-bold text-foreground mt-1">
                 {Math.round(stats.totalVolume).toLocaleString()} kg
               </p>
             </div>
-            <div className="p-3 bg-primary/10 rounded-lg">
-              <Dumbbell className="w-6 h-6 text-primary" />
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center shadow-lg shadow-red-500/25">
+              <Dumbbell className="w-6 h-6 text-white" />
             </div>
           </div>
-        </Card>
+        </div>
 
-        <Card className="p-4 bg-white dark:bg-black/40 border-gray-200 dark:border-white/10">
+        <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-lg shadow-primary/5 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Workouts</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stats.totalWorkouts}</p>
+              <p className="text-sm text-muted-foreground">Total Workouts</p>
+              <p className="text-2xl font-bold text-foreground mt-1">{stats.totalWorkouts}</p>
             </div>
-            <div className="p-3 bg-secondary/10 rounded-lg">
-              <Calendar className="w-6 h-6 text-secondary" />
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/25">
+              <Calendar className="w-6 h-6 text-white" />
             </div>
           </div>
-        </Card>
+        </div>
 
-        <Card className="p-4 bg-white dark:bg-black/40 border-gray-200 dark:border-white/10">
+        <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-lg shadow-primary/5 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Avg. RPE</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+              <p className="text-sm text-muted-foreground">Avg. RPE</p>
+              <p className="text-2xl font-bold text-foreground mt-1">
                 {stats.averageRPE.toFixed(1)}
               </p>
             </div>
-            <div className="p-3 bg-green-500/10 rounded-lg">
-              <Target className="w-6 h-6 text-green-500" />
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-green-500/25">
+              <Target className="w-6 h-6 text-white" />
             </div>
           </div>
-        </Card>
+        </div>
 
-        <Card className="p-4 bg-white dark:bg-black/40 border-gray-200 dark:border-white/10">
+        <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-lg shadow-primary/5 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Sets</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stats.totalSets}</p>
+              <p className="text-sm text-muted-foreground">Total Sets</p>
+              <p className="text-2xl font-bold text-foreground mt-1">{stats.totalSets}</p>
             </div>
-            <div className="p-3 bg-cyan-500/10 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-cyan-500" />
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-violet-500 flex items-center justify-center shadow-lg shadow-purple-500/25">
+              <TrendingUp className="w-6 h-6 text-white" />
             </div>
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Volume Progression */}
         {volumeData.length > 0 && (
-          <Card className="p-6 bg-white dark:bg-black/40 border-gray-200 dark:border-white/10">
+          <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-lg shadow-primary/5 p-6">
             <div className="mb-4">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Volume Progression</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total volume lifted over time</p>
+              <h3 className="text-lg font-bold text-foreground">Volume Progression</h3>
+              <p className="text-sm text-muted-foreground">Total volume lifted over time</p>
             </div>
             <ChartContainer config={chartConfig} className="h-[300px]">
               <LineChart data={volumeData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis 
                   dataKey="date" 
                   className="text-xs"
@@ -247,21 +247,21 @@ export function AnalyticsTab() {
                 <Line 
                   type="monotone" 
                   dataKey="volume" 
-                  stroke="hsl(var(--primary))" 
+                  stroke="#ef4444" 
                   strokeWidth={2}
-                  dot={{ fill: "hsl(var(--primary))", r: 4 }}
+                  dot={{ fill: "#ef4444", r: 4 }}
                 />
               </LineChart>
             </ChartContainer>
-          </Card>
+          </div>
         )}
 
         {/* Muscle Group Distribution */}
         {muscleGroupData.length > 0 && (
-          <Card className="p-6 bg-white dark:bg-black/40 border-gray-200 dark:border-white/10">
+          <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-lg shadow-primary/5 p-6">
             <div className="mb-4">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Muscle Group Distribution</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Workout distribution by muscle group</p>
+              <h3 className="text-lg font-bold text-foreground">Muscle Group Distribution</h3>
+              <p className="text-sm text-muted-foreground">Workout distribution by muscle group</p>
             </div>
             <ChartContainer config={chartConfig} className="h-[300px]">
               <PieChart>
@@ -282,19 +282,19 @@ export function AnalyticsTab() {
                 <ChartTooltip content={<ChartTooltipContent />} />
               </PieChart>
             </ChartContainer>
-          </Card>
+          </div>
         )}
 
         {/* Workout Frequency */}
         {workoutFrequency.length > 0 && (
-          <Card className="p-6 bg-white dark:bg-black/40 border-gray-200 dark:border-white/10 lg:col-span-2">
+          <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-lg shadow-primary/5 p-6 lg:col-span-2">
             <div className="mb-4">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Workout Frequency</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Number of workouts per month</p>
+              <h3 className="text-lg font-bold text-foreground">Workout Frequency</h3>
+              <p className="text-sm text-muted-foreground">Number of workouts per month</p>
             </div>
             <ChartContainer config={chartConfig} className="h-[300px]">
               <BarChart data={workoutFrequency}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis 
                   dataKey="month" 
                   className="text-xs"
@@ -307,12 +307,12 @@ export function AnalyticsTab() {
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Bar 
                   dataKey="workouts" 
-                  fill="hsl(var(--primary))" 
+                  fill="#ef4444" 
                   radius={[8, 8, 0, 0]}
                 />
               </BarChart>
             </ChartContainer>
-          </Card>
+          </div>
         )}
       </div>
     </div>

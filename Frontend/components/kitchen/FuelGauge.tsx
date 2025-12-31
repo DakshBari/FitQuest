@@ -37,17 +37,19 @@ export function FuelGauge({ current, target, goal, viewMode, weeklyData = [] }: 
   const flameColor = calPct >= 100 ? 'text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.6)]' : 'text-muted-foreground';
 
   return (
-    <Card className={`h-[480px] border shadow-md p-6 flex flex-col relative overflow-hidden transition-all bg-[#1C1C1C] ${borderColor}`}>
-       {/* Decorative Glows */}
-       <div className="absolute -top-20 -right-20 w-60 h-60 bg-primary/5 rounded-full blur-[60px] pointer-events-none"></div>
-       <div className="absolute top-10 -left-10 w-40 h-40 bg-cyan-500/5 rounded-full blur-[50px] pointer-events-none"></div>
+    <Card className="bg-gradient-to-br from-purple-500/10 to-violet-500/5 border-purple-500/20 shadow-sm p-6 flex flex-col relative overflow-hidden transition-all h-[480px]">
+       {/* Background Decoration */}
+       <div className="absolute -top-20 -right-20 w-60 h-60 bg-purple-500/10 rounded-full blur-[60px] pointer-events-none"></div>
+       <div className="absolute top-10 -left-10 w-40 h-40 bg-violet-500/5 rounded-full blur-[50px] pointer-events-none"></div>
 
        {/* Compact Header */}
        <div className="flex justify-between items-center z-10 mb-4">
-        <h2 className="text-sm font-bold text-foreground tracking-wide uppercase">Fuel Gauge</h2>
+        <h2 className="text-sm font-bold text-foreground tracking-wide uppercase flex items-center gap-2">
+          <Target className="w-3.5 h-3.5 text-purple-500 fill-purple-500/20"/> Fuel Gauge
+        </h2>
         <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono bg-black/20 px-2 py-1 rounded-full border border-white/5">
            {viewMode === 'daily' ? 'DAILY' : 'WEEKLY'}
-           <Activity className="w-3 h-3 text-primary" />
+           <Activity className="w-3 h-3 text-purple-500" />
         </div>
       </div>
 
@@ -55,9 +57,9 @@ export function FuelGauge({ current, target, goal, viewMode, weeklyData = [] }: 
         // Enhanced Weekly Chart with Stacked Macros and Calories
         <div className="flex-1 flex flex-col gap-4">
           {/* Weekly Total Display */}
-          <div className="flex justify-between items-center bg-gradient-to-r from-white/5 to-transparent border border-white/5 rounded-xl p-4">
+          <div className="flex justify-between items-center bg-gradient-to-r from-purple-500/10 to-transparent border border-purple-500/20 rounded-xl p-4">
             <div className="flex items-center gap-3">
-              <Flame className={`w-8 h-8 ${calories >= targetCal ? 'text-yellow-400' : 'text-muted-foreground'}`} />
+              <Flame className={`w-8 h-8 ${calories >= targetCal ? 'text-yellow-400' : 'text-purple-400'}`} />
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">Weekly Total</p>
                 <p className="text-2xl font-bold text-foreground font-orbitron">{Math.round(calories || 0).toLocaleString()}</p>
@@ -151,7 +153,7 @@ export function FuelGauge({ current, target, goal, viewMode, weeklyData = [] }: 
                     {/* Stacked Macro Bar */}
                     <div className={`relative w-full bg-white/5 rounded-lg h-[240px] overflow-hidden border border-white/10 transition-all duration-300 ${
                       isHovered 
-                        ? 'shadow-lg shadow-primary/20 border-primary/30 scale-105' 
+                        ? 'shadow-lg shadow-purple-500/20 border-purple-500/30 scale-105' 
                         : isOtherHovered 
                         ? 'scale-95' 
                         : 'hover:border-white/20'
@@ -236,7 +238,7 @@ export function FuelGauge({ current, target, goal, viewMode, weeklyData = [] }: 
                     
                     {/* Day Label */}
                     <span className={`text-[10px] text-muted-foreground font-mono transition-all duration-300 ${
-                      isHovered ? 'scale-110 text-primary' : isOtherHovered ? 'scale-90 opacity-60' : ''
+                      isHovered ? 'scale-110 text-purple-400' : isOtherHovered ? 'scale-90 opacity-60' : ''
                     }`}>
                       {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' })}
                     </span>
@@ -302,9 +304,9 @@ export function FuelGauge({ current, target, goal, viewMode, weeklyData = [] }: 
             </div>
 
             {/* Right: Total Calorie Display (Prominent) */}
-            <div className="w-[180px] h-full flex flex-col items-center justify-center bg-gradient-to-br from-white/5 to-transparent border border-white/5 rounded-2xl relative overflow-hidden">
+            <div className="w-[180px] h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-500/10 to-transparent border border-purple-500/20 rounded-2xl relative overflow-hidden">
                 {/* Background Glow */}
-                <div className="absolute inset-0 bg-primary/5 blur-xl opacity-0 hover:opacity-100 transition-opacity duration-700"></div>
+                <div className="absolute inset-0 bg-purple-500/10 blur-xl opacity-0 hover:opacity-100 transition-opacity duration-700"></div>
 
                 {/* Big Flame */}
                 <div className="relative mb-4 z-10">
@@ -319,7 +321,7 @@ export function FuelGauge({ current, target, goal, viewMode, weeklyData = [] }: 
                     
                     {/* Mini Progress Bar */}
                     <div className="w-full h-1.5 bg-white/5 rounded-full mt-4 overflow-hidden max-w-[120px] mx-auto">
-                        <div className="h-full bg-gradient-to-r from-primary to-purple-500 rounded-full shadow-[0_0_10px_rgba(168,85,247,0.5)]" style={{ width: `${calPct}%` }}></div>
+                        <div className="h-full bg-gradient-to-r from-purple-500 to-violet-500 rounded-full shadow-[0_0_10px_rgba(168,85,247,0.5)]" style={{ width: `${calPct}%` }}></div>
                     </div>
                     <p className="text-[9px] text-muted-foreground mt-1 font-mono">Target: {targetCal}</p>
                 </div>

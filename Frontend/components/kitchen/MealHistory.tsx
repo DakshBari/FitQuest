@@ -17,6 +17,7 @@ import {
   Droplet
 } from "lucide-react"
 import { mealsApi, hydrationApi } from "@/lib/api"
+import { useApi } from "@/hooks/useApi"
 import { formatTime } from "@/lib/timeUtils"
 
 interface MealHistoryProps {
@@ -33,6 +34,7 @@ interface MealHistoryProps {
 type HistoryView = 'all' | 'daily'
 
 export function MealHistory({ goals, onToggleFavorite }: MealHistoryProps) {
+  const api = useApi()
   const [historyView, setHistoryView] = useState<HistoryView>('all')
   const [allMeals, setAllMeals] = useState<any[]>([])
   const [dailyEntries, setDailyEntries] = useState<any[]>([])
@@ -50,45 +52,11 @@ export function MealHistory({ goals, onToggleFavorite }: MealHistoryProps) {
   const fetchAllMeals = async () => {
     setIsLoading(true)
     try {
-      // First try the new history endpoint
-      const data = await mealsApi.getHistory(100, 1)
+      const data = await api.meals.getHistory(100, 1)
       setAllMeals(data.meals || [])
     } catch (error) {
-      console.error("History endpoint failed, using fallback", error)
-      // Fallback: Get today's meals and weekly meals to populate history
-      try {
-        const [dailyData, weeklyData] = await Promise.all([
-          mealsApi.getDaily(),
-          mealsApi.getWeeklyDetailed()
-        ])
-        
-        // Combine all meals from weekly data
-        const allWeeklyMeals: any[] = []
-        if (weeklyData.weeklyMeals) {
-          weeklyData.weeklyMeals.forEach((day: any) => {
-            if (day.meals && day.meals.length > 0) {
-              allWeeklyMeals.push(...day.meals)
-            }
-          })
-        }
-        
-        // Add today's meals if not already included
-        const todayMeals = dailyData.summary.meals || []
-        const combinedMeals = [...allWeeklyMeals, ...todayMeals]
-        
-        // Remove duplicates based on _id
-        const uniqueMeals = combinedMeals.filter((meal, index, self) => 
-          index === self.findIndex(m => m._id === meal._id)
-        )
-        
-        // Sort by date (newest first)
-        uniqueMeals.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        
-        setAllMeals(uniqueMeals)
-      } catch (fallbackError) {
-        console.error("All fallbacks failed", fallbackError)
-        setAllMeals([])
-      }
+      console.error("Failed to fetch meal history", error)
+      setAllMeals([])
     } finally {
       setIsLoading(false)
     }

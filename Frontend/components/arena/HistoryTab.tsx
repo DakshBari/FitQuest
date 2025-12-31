@@ -243,18 +243,18 @@ export function HistoryTab() {
 
   if (!isAuthenticated) {
     return (
-      <Card className="p-12 text-center bg-white dark:bg-black/40 border-gray-200 dark:border-white/10">
-        <p className="text-gray-600 dark:text-gray-400">Please log in to view workout history</p>
-      </Card>
+      <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5 p-12 text-center">
+        <p className="text-muted-foreground">Please log in to view workout history</p>
+      </div>
     )
   }
 
   if (isLoading) {
     return (
-      <Card className="p-12 text-center bg-white dark:bg-black/40 border-gray-200 dark:border-white/10">
-        <Loader2 className="w-8 h-8 mx-auto animate-spin text-primary mb-4" />
-        <p className="text-gray-600 dark:text-gray-400">Loading workout history...</p>
-      </Card>
+      <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5 p-12 text-center">
+        <Loader2 className="w-8 h-8 mx-auto animate-spin text-red-500 mb-4" />
+        <p className="text-muted-foreground">Loading workout history...</p>
+      </div>
     )
   }
 
@@ -262,24 +262,24 @@ export function HistoryTab() {
     <div className="w-full space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white font-orbitron">Workout History</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <h2 className="text-2xl font-bold text-foreground font-inter">Workout History</h2>
+          <p className="text-sm text-muted-foreground mt-1">
             View, edit, or delete your previous workouts
           </p>
         </div>
-        <div className="text-sm text-gray-500 dark:text-gray-400">
+        <div className="text-sm text-muted-foreground">
           Total: {workouts.length} workouts
         </div>
       </div>
 
       {/* Tabs for All Workouts vs Daily Entries */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 p-1 rounded-lg">
-          <TabsTrigger value="all" className="gap-2">
+        <TabsList className="bg-card/80 backdrop-blur-xl border border-border/50 p-1 rounded-2xl shadow-lg shadow-primary/5">
+          <TabsTrigger value="all" className="gap-2 rounded-xl font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-red-500/25">
             <Dumbbell className="w-4 h-4" />
             All Workouts
           </TabsTrigger>
-          <TabsTrigger value="daily" className="gap-2">
+          <TabsTrigger value="daily" className="gap-2 rounded-xl font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-red-500/25">
             <Calendar className="w-4 h-4" />
             Daily Entries
           </TabsTrigger>
@@ -289,39 +289,39 @@ export function HistoryTab() {
         <TabsContent value="all" className="mt-6">
           <div className="space-y-4">
             {groupedSets.length === 0 ? (
-              <Card className="p-12 text-center bg-white dark:bg-black/40 border-gray-200 dark:border-white/10">
-                <Dumbbell className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-600 dark:text-gray-400">No workout history yet</p>
-                <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+              <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5 p-12 text-center">
+                <Dumbbell className="w-12 h-12 mx-auto text-muted-foreground opacity-30 mb-4" />
+                <p className="text-muted-foreground font-medium">No workout history yet</p>
+                <p className="text-sm text-muted-foreground/70 mt-2">
                   Start logging your workouts to see them here
                 </p>
-              </Card>
+              </div>
             ) : (
               groupedSets.map((group, groupIndex) => (
-                <Card 
+                <div 
                   key={groupIndex} 
-                  className="bg-white dark:bg-black/40 border-gray-200 dark:border-white/10 hover:shadow-lg transition-shadow"
+                  className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-lg shadow-primary/5 hover:shadow-xl hover:shadow-primary/10 transition-all duration-200"
                 >
                   <div className="p-6">
                     <div className="flex flex-col gap-4">
                       {/* Exercise Header */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                          <h3 className="text-lg font-bold text-foreground">
                             {group.exercise}
                           </h3>
-                          <span className="px-2 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full">
+                          <span className="px-2 py-1 bg-gradient-to-r from-red-500/20 to-orange-500/20 text-red-500 text-xs font-semibold rounded-full border border-red-500/30">
                             {group.muscleGroup}
                           </span>
-                          <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 text-xs font-medium rounded-full flex items-center gap-1">
+                          <span className="px-2 py-1 bg-blue-500/10 text-blue-500 text-xs font-medium rounded-full flex items-center gap-1 border border-blue-500/20">
                             <span>{getWeightTypeIcon(group.sets[0].weightType || 'dumbbell')}</span>
                             <span>{formatWeightType(group.sets[0].weightType || 'dumbbell')}</span>
                           </span>
-                          <span className="px-2 py-1 bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full">
+                          <span className="px-2 py-1 bg-muted/50 text-muted-foreground text-xs font-medium rounded-full">
                             {group.sets.length} set{group.sets.length !== 1 ? 's' : ''}
                           </span>
                         </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                        <div className="text-sm text-muted-foreground">
                           {formatDate(group.date)} • {formatTime(group.date)}
                         </div>
                       </div>
@@ -329,18 +329,18 @@ export function HistoryTab() {
                       {/* Individual Sets */}
                       <div className="space-y-2">
                         {group.sets.map((workout, setIndex) => (
-                          <div key={workout._id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-black/30 rounded-lg">
+                          <div key={workout._id} className="flex items-center justify-between p-3 bg-background/50 rounded-xl border border-border backdrop-blur-sm">
                             <div className="flex items-center gap-4">
-                              <span className="text-sm font-medium text-gray-600 dark:text-gray-400 min-w-[60px]">
+                              <span className="text-sm font-medium text-muted-foreground min-w-[60px]">
                                 Set {setIndex + 1}
                               </span>
-                              <span className="text-sm font-bold text-gray-900 dark:text-white">
+                              <span className="text-sm font-bold text-foreground">
                                 {workout.sets[0].reps} reps × {workout.sets[0].weight} {workout.sets[0].unit}
                               </span>
-                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                              <span className="text-xs text-muted-foreground">
                                 RPE {workout.rpe}
                               </span>
-                              <span className="text-xs text-gray-400">
+                              <span className="text-xs text-muted-foreground/70">
                                 {formatTime(workout.date)}
                               </span>
                             </div>
@@ -349,7 +349,8 @@ export function HistoryTab() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleEdit(workout)}
-                                className="h-8 w-8 p-0"
+                                className="h-8 w-8 p-0 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10 rounded-lg"
+                                title="Edit workout"
                               >
                                 <Edit className="w-4 h-4" />
                               </Button>
@@ -357,7 +358,7 @@ export function HistoryTab() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleViewDetails(workout)}
-                                className="h-8 w-8 p-0"
+                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg"
                               >
                                 <Info className="w-4 h-4" />
                               </Button>
@@ -365,7 +366,7 @@ export function HistoryTab() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDelete(workout._id!)}
-                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10"
+                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -376,8 +377,8 @@ export function HistoryTab() {
 
                       {/* Summary */}
                       {group.sets.length > 1 && (
-                        <div className="pt-2 border-t border-gray-200 dark:border-white/10">
-                          <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+                        <div className="pt-2 border-t border-border">
+                          <div className="flex items-center justify-between text-sm text-muted-foreground">
                             <span>Total Volume: {group.sets.reduce((sum, w) => {
                               const set = w.sets[0]
                               const weightInKg = set.unit === 'lb' ? set.weight * 0.453592 : set.weight
@@ -389,7 +390,7 @@ export function HistoryTab() {
                       )}
                     </div>
                   </div>
-                </Card>
+                </div>
               ))
             )}
           </div>
@@ -401,43 +402,43 @@ export function HistoryTab() {
             {Object.entries(groupWorkoutsByDate(workouts)).sort(([a], [b]) => 
               new Date(b).getTime() - new Date(a).getTime()
             ).length === 0 ? (
-              <Card className="p-12 text-center bg-white dark:bg-black/40 border-gray-200 dark:border-white/10">
-                <Calendar className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-600 dark:text-gray-400">No daily entries yet</p>
-                <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+              <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5 p-12 text-center">
+                <Calendar className="w-12 h-12 mx-auto text-muted-foreground opacity-30 mb-4" />
+                <p className="text-muted-foreground font-medium">No daily entries yet</p>
+                <p className="text-sm text-muted-foreground/70 mt-2">
                   Start logging workouts to see daily summaries
                 </p>
-              </Card>
+              </div>
             ) : (
               Object.entries(groupWorkoutsByDate(workouts)).sort(([a], [b]) => 
                 new Date(b).getTime() - new Date(a).getTime()
               ).map(([date, dayWorkouts]) => {
                 const isExpanded = expandedDays.has(date)
                 return (
-                  <Card 
+                  <div 
                     key={date}
-                    className="bg-white dark:bg-black/40 border-gray-200 dark:border-white/10 hover:shadow-md transition-shadow"
+                    className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-lg shadow-primary/5 hover:shadow-xl hover:shadow-primary/10 transition-all duration-200"
                   >
                     {/* Clickable Header */}
                     <div 
-                      className="p-6 cursor-pointer hover:bg-gray-50 dark:hover:bg-black/20 transition-colors"
+                      className="p-6 cursor-pointer hover:bg-background/30 transition-colors rounded-t-3xl"
                       onClick={() => toggleDayExpansion(date)}
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                          <h3 className="text-lg font-bold text-foreground">
                             {formatDate(date)}
                           </h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                          <p className="text-sm text-muted-foreground">
                             {dayWorkouts.length} workout log{dayWorkouts.length !== 1 ? 's' : ''}
                           </p>
                         </div>
                         <div className="flex items-center gap-3">
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                          <div className="text-sm text-muted-foreground">
                             {dayWorkouts.reduce((sum, w) => sum + w.sets.length, 0)} sets
                           </div>
                           <div className={`transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-                            <ChevronDown className="w-5 h-5 text-gray-400" />
+                            <ChevronDown className="w-5 h-5 text-muted-foreground" />
                           </div>
                         </div>
                       </div>
@@ -445,27 +446,27 @@ export function HistoryTab() {
                     
                     {/* Expandable Details */}
                     {isExpanded && (
-                      <div className="px-6 pb-6 border-t border-gray-200 dark:border-white/10">
+                      <div className="px-6 pb-6 border-t border-border">
                         <div className="pt-4 space-y-3">
                           {groupRelatedSets(dayWorkouts).map((group, groupIndex) => (
-                            <div key={groupIndex} className="p-4 bg-gray-50 dark:bg-black/30 rounded-lg">
+                            <div key={groupIndex} className="p-4 bg-background/50 rounded-xl border border-border backdrop-blur-sm">
                               <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-3">
-                                  <span className="text-base font-semibold text-gray-900 dark:text-white">
+                                  <span className="text-base font-semibold text-foreground">
                                     {group.exercise}
                                   </span>
-                                  <span className="px-2 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full">
+                                  <span className="px-2 py-1 bg-gradient-to-r from-red-500/20 to-orange-500/20 text-red-500 text-xs font-semibold rounded-full border border-red-500/30">
                                     {group.muscleGroup}
                                   </span>
-                                  <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 text-xs font-medium rounded-full flex items-center gap-1">
+                                  <span className="px-2 py-1 bg-blue-500/10 text-blue-500 text-xs font-medium rounded-full flex items-center gap-1 border border-blue-500/20">
                                     <span>{getWeightTypeIcon(group.sets[0].weightType || 'dumbbell')}</span>
                                     <span>{formatWeightType(group.sets[0].weightType || 'dumbbell')}</span>
                                   </span>
-                                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                                  <span className="text-sm text-muted-foreground">
                                     {group.sets.length} set{group.sets.length !== 1 ? 's' : ''}
                                   </span>
                                 </div>
-                                <span className="text-sm text-gray-400">
+                                <span className="text-sm text-muted-foreground/70">
                                   {formatTime(group.date)}
                                 </span>
                               </div>
@@ -473,18 +474,18 @@ export function HistoryTab() {
                               {/* Individual Sets */}
                               <div className="space-y-2">
                                 {group.sets.map((workout, setIndex) => (
-                                  <div key={workout._id} className="flex items-center justify-between p-2 bg-white dark:bg-black/40 rounded">
+                                  <div key={workout._id} className="flex items-center justify-between p-2 bg-background/80 rounded-lg border border-border/50">
                                     <div className="flex items-center gap-3">
-                                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400 min-w-[50px]">
+                                      <span className="text-sm font-medium text-muted-foreground min-w-[50px]">
                                         Set {setIndex + 1}
                                       </span>
-                                      <span className="text-sm font-bold text-gray-900 dark:text-white">
+                                      <span className="text-sm font-bold text-foreground">
                                         {workout.sets[0].reps} reps × {workout.sets[0].weight} {workout.sets[0].unit}
                                       </span>
-                                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      <span className="text-xs text-muted-foreground">
                                         RPE {workout.rpe}
                                       </span>
-                                      <span className="text-xs text-gray-400">
+                                      <span className="text-xs text-muted-foreground/70">
                                         {formatTime(workout.date)}
                                       </span>
                                     </div>
@@ -496,7 +497,8 @@ export function HistoryTab() {
                                           e.stopPropagation()
                                           handleEdit(workout)
                                         }}
-                                        className="h-7 w-7 p-0"
+                                        className="h-7 w-7 p-0 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10 rounded-lg"
+                                        title="Edit workout"
                                       >
                                         <Edit className="w-3 h-3" />
                                       </Button>
@@ -507,7 +509,7 @@ export function HistoryTab() {
                                           e.stopPropagation()
                                           handleViewDetails(workout)
                                         }}
-                                        className="h-7 w-7 p-0"
+                                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg"
                                       >
                                         <Info className="w-3 h-3" />
                                       </Button>
@@ -518,7 +520,7 @@ export function HistoryTab() {
                                           e.stopPropagation()
                                           handleDelete(workout._id!)
                                         }}
-                                        className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10"
+                                        className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg"
                                       >
                                         <Trash2 className="w-3 h-3" />
                                       </Button>
@@ -529,8 +531,8 @@ export function HistoryTab() {
 
                               {/* Exercise Summary */}
                               {group.sets.length > 1 && (
-                                <div className="mt-3 pt-2 border-t border-gray-200 dark:border-white/20">
-                                  <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                                <div className="mt-3 pt-2 border-t border-border">
+                                  <div className="flex items-center justify-between text-xs text-muted-foreground">
                                     <span>Volume: {group.sets.reduce((sum, w) => {
                                       const set = w.sets[0]
                                       const weightInKg = set.unit === 'lb' ? set.weight * 0.453592 : set.weight
@@ -545,7 +547,7 @@ export function HistoryTab() {
                         </div>
                       </div>
                     )}
-                  </Card>
+                  </div>
                 )
               })
             )}
@@ -555,9 +557,9 @@ export function HistoryTab() {
 
       {/* Details Dialog */}
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card/95 backdrop-blur-xl border border-border rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-orbitron">Workout Details</DialogTitle>
+            <DialogTitle className="text-2xl font-inter">Workout Details</DialogTitle>
             <DialogDescription>
               Complete information about this workout session
             </DialogDescription>
@@ -567,14 +569,14 @@ export function HistoryTab() {
             <div className="space-y-6 mt-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Exercise</label>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white mt-1">
+                  <label className="text-sm font-medium text-muted-foreground">Exercise</label>
+                  <p className="text-lg font-semibold text-foreground mt-1">
                     {selectedWorkout.exercise}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Muscle Group</label>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white mt-1">
+                  <label className="text-sm font-medium text-muted-foreground">Muscle Group</label>
+                  <p className="text-lg font-semibold text-foreground mt-1">
                     {selectedWorkout.muscleGroup}
                   </p>
                 </div>
@@ -582,15 +584,15 @@ export function HistoryTab() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Weight Type</label>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white mt-1 flex items-center gap-2">
+                  <label className="text-sm font-medium text-muted-foreground">Weight Type</label>
+                  <p className="text-lg font-semibold text-foreground mt-1 flex items-center gap-2">
                     <span>{getWeightTypeIcon(selectedWorkout.weightType || 'dumbbell')}</span>
                     <span>{formatWeightType(selectedWorkout.weightType || 'dumbbell')}</span>
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">RPE</label>
-                  <p className="text-base text-gray-900 dark:text-white mt-1">
+                  <label className="text-sm font-medium text-muted-foreground">RPE</label>
+                  <p className="text-base text-foreground mt-1">
                     {selectedWorkout.rpe}/10
                   </p>
                 </div>
@@ -598,14 +600,14 @@ export function HistoryTab() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Date</label>
-                  <p className="text-base text-gray-900 dark:text-white mt-1">
+                  <label className="text-sm font-medium text-muted-foreground">Date</label>
+                  <p className="text-base text-foreground mt-1">
                     {formatDate(selectedWorkout.date)}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Time</label>
-                  <p className="text-base text-gray-900 dark:text-white mt-1">
+                  <label className="text-sm font-medium text-muted-foreground">Time</label>
+                  <p className="text-base text-foreground mt-1">
                     {formatTime(selectedWorkout.date)}
                   </p>
                 </div>
@@ -613,12 +615,12 @@ export function HistoryTab() {
 
               {/* Sets Details */}
               <div>
-                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Sets</label>
+                <label className="text-sm font-medium text-muted-foreground">Sets</label>
                 <div className="mt-2 space-y-2">
                   {selectedWorkout.sets.map((set, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-black/30 rounded-lg">
+                    <div key={index} className="flex items-center justify-between p-3 bg-background/50 rounded-xl border border-border backdrop-blur-sm">
                       <span className="font-medium">Set {index + 1}</span>
-                      <span className="text-primary font-bold">
+                      <span className="text-red-500 font-bold">
                         {set.reps} reps × {set.weight} {set.unit}
                       </span>
                     </div>
@@ -629,8 +631,8 @@ export function HistoryTab() {
               <div className="grid grid-cols-1 gap-4">
                 {selectedWorkout.restTime && (
                   <div>
-                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Rest Time</label>
-                    <p className="text-base text-gray-900 dark:text-white mt-1">
+                    <label className="text-sm font-medium text-muted-foreground">Rest Time</label>
+                    <p className="text-base text-foreground mt-1">
                       {selectedWorkout.restTime}
                     </p>
                   </div>
@@ -639,8 +641,8 @@ export function HistoryTab() {
 
               {selectedWorkout.notes && (
                 <div>
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Notes</label>
-                  <p className="text-base text-gray-900 dark:text-white mt-2 p-3 bg-gray-50 dark:bg-black/30 rounded-lg">
+                  <label className="text-sm font-medium text-muted-foreground">Notes</label>
+                  <p className="text-base text-foreground mt-2 p-3 bg-background/50 rounded-xl border border-border backdrop-blur-sm">
                     {selectedWorkout.notes}
                   </p>
                 </div>
@@ -652,9 +654,9 @@ export function HistoryTab() {
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-card/95 backdrop-blur-xl border border-border rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-orbitron">Edit Workout</DialogTitle>
+            <DialogTitle className="text-2xl font-inter">Edit Workout</DialogTitle>
             <DialogDescription>
               Modify workout details and save changes
             </DialogDescription>
@@ -665,20 +667,20 @@ export function HistoryTab() {
               {/* Exercise and Basic Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Exercise Name</Label>
+                  <Label className="text-sm font-medium text-foreground">Exercise Name</Label>
                   <Input
                     value={editForm.exercise}
                     onChange={(e) => setEditForm({...editForm, exercise: e.target.value})}
                     placeholder="e.g. Bench Press"
-                    className="mt-1"
+                    className="mt-1 bg-background/50 border-border backdrop-blur-sm"
                   />
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Muscle Group</Label>
+                  <Label className="text-sm font-medium text-foreground">Muscle Group</Label>
                   <select
                     value={editForm.muscleGroup}
                     onChange={(e) => setEditForm({...editForm, muscleGroup: e.target.value})}
-                    className="mt-1 w-full bg-background border border-input rounded-md px-3 py-2 text-sm"
+                    className="mt-1 w-full bg-background/50 border border-border rounded-xl px-3 py-2 text-sm backdrop-blur-sm"
                   >
                     {MUSCLE_GROUPS.map(group => (
                       <option key={group} value={group}>{group}</option>
@@ -690,11 +692,11 @@ export function HistoryTab() {
               {/* Weight Type and Set Details */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Weight Type</Label>
+                  <Label className="text-sm font-medium text-foreground">Weight Type</Label>
                   <select
                     value={editForm.weightType}
                     onChange={(e) => setEditForm({...editForm, weightType: e.target.value as any})}
-                    className="mt-1 w-full bg-background border border-input rounded-md px-3 py-2 text-sm"
+                    className="mt-1 w-full bg-background/50 border border-border rounded-xl px-3 py-2 text-sm backdrop-blur-sm"
                   >
                     {WEIGHT_TYPES.map(type => (
                       <option key={type.value} value={type.value}>
@@ -704,17 +706,17 @@ export function HistoryTab() {
                   </select>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Reps</Label>
+                  <Label className="text-sm font-medium text-foreground">Reps</Label>
                   <Input
                     type="number"
                     value={editForm.reps || ''}
                     onChange={(e) => setEditForm({...editForm, reps: parseInt(e.target.value) || 0})}
                     placeholder="12"
-                    className="mt-1"
+                    className="mt-1 bg-background/50 border-border backdrop-blur-sm"
                   />
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <Label className="text-sm font-medium text-foreground">
                     Weight {editForm.weightType === 'bodyweight' ? '(Additional)' : ''}
                   </Label>
                   <div className="flex gap-2 mt-1">
@@ -723,12 +725,12 @@ export function HistoryTab() {
                       value={editForm.weight || ''}
                       onChange={(e) => setEditForm({...editForm, weight: parseFloat(e.target.value) || 0})}
                       placeholder={editForm.weightType === 'bodyweight' ? '0' : '20'}
-                      className="flex-1"
+                      className="flex-1 bg-background/50 border-border backdrop-blur-sm"
                     />
                     <select
                       value={editForm.unit}
                       onChange={(e) => setEditForm({...editForm, unit: e.target.value as 'kg' | 'lb'})}
-                      className="bg-background border border-input rounded-md px-3 py-2 text-sm"
+                      className="bg-background/50 border border-border rounded-xl px-3 py-2 text-sm backdrop-blur-sm"
                     >
                       <option value="kg">KG</option>
                       <option value="lb">LB</option>
@@ -740,25 +742,25 @@ export function HistoryTab() {
               {/* Date, Time, and RPE */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Date</Label>
+                  <Label className="text-sm font-medium text-foreground">Date</Label>
                   <Input
                     type="date"
                     value={editForm.date}
                     onChange={(e) => setEditForm({...editForm, date: e.target.value})}
-                    className="mt-1"
+                    className="mt-1 bg-background/50 border-border backdrop-blur-sm"
                   />
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Time</Label>
+                  <Label className="text-sm font-medium text-foreground">Time</Label>
                   <Input
                     type="time"
                     value={editForm.time}
                     onChange={(e) => setEditForm({...editForm, time: e.target.value})}
-                    className="mt-1"
+                    className="mt-1 bg-background/50 border-border backdrop-blur-sm"
                   />
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">RPE (1-10)</Label>
+                  <Label className="text-sm font-medium text-foreground">RPE (1-10)</Label>
                   <div className="flex gap-1 mt-1">
                     {[1,2,3,4,5,6,7,8,9,10].map((n) => (
                       <button
@@ -767,7 +769,7 @@ export function HistoryTab() {
                         onClick={() => setEditForm({...editForm, rpe: n})}
                         className={`flex-1 h-8 rounded text-xs font-bold transition-all ${
                           editForm.rpe === n
-                            ? "bg-primary text-primary-foreground shadow-md"
+                            ? "bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-md"
                             : "bg-muted text-muted-foreground hover:bg-muted/80"
                         }`}
                       >
@@ -781,38 +783,39 @@ export function HistoryTab() {
               {/* Rest Time and Notes */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Rest Time (Optional)</Label>
+                  <Label className="text-sm font-medium text-foreground">Rest Time (Optional)</Label>
                   <Input
                     value={editForm.restTime}
                     onChange={(e) => setEditForm({...editForm, restTime: e.target.value})}
                     placeholder="e.g. 90s, 2min"
-                    className="mt-1"
+                    className="mt-1 bg-background/50 border-border backdrop-blur-sm"
                   />
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Notes (Optional)</Label>
+                  <Label className="text-sm font-medium text-foreground">Notes (Optional)</Label>
                   <Textarea
                     value={editForm.notes}
                     onChange={(e) => setEditForm({...editForm, notes: e.target.value})}
                     placeholder="Additional notes..."
-                    className="mt-1 h-20 resize-none"
+                    className="mt-1 h-20 resize-none bg-background/50 border-border backdrop-blur-sm"
                   />
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t">
+              <div className="flex justify-end gap-3 pt-4 border-t border-border">
                 <Button
                   variant="outline"
                   onClick={() => setIsEditOpen(false)}
                   disabled={isEditLoading}
+                  className="border-border/50 text-muted-foreground hover:text-foreground hover:bg-background/50 rounded-xl"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleSaveEdit}
                   disabled={isEditLoading || !editForm.exercise.trim() || editForm.reps === 0}
-                  className="bg-primary hover:bg-primary/90"
+                  className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white rounded-xl"
                 >
                   {isEditLoading ? (
                     <>
