@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Edit2, Plus, RefreshCw, Utensils, History, BarChart3 } from "lucide-react"
@@ -15,9 +16,15 @@ import { MealHistory } from "@/components/kitchen/MealHistory"
 import { MealAnalytics } from "@/components/kitchen/MealAnalytics"
 import { useApi } from "@/hooks/useApi"
 import { getCurrentTime } from "@/lib/timeUtils"
+import { getThemeClasses } from "@/lib/pageThemes"
+import { cn } from "@/lib/utils"
+import { PageHeader, ThemedButton } from "@/components/page-header"
+import { ThemedTabsTrigger } from "@/components/themed-tabs"
 
 export default function KitchenPage() {
   const api = useApi() // Add this line
+  const pathname = usePathname()
+  const themeClasses = getThemeClasses(pathname)
   const [showGoalSettings, setShowGoalSettings] = useState(false)
   const [profile, setProfile] = useState({
     weight: 75, 
@@ -309,88 +316,72 @@ export default function KitchenPage() {
       )}
 
       {/* Modern Header */}
-      <div className="flex-shrink-0 px-6 pt-6 pb-4">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-green-500/25 dark:shadow-green-500/10">
-                <Utensils className="w-6 h-6 text-white" />
-              </div>
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-background animate-pulse"></div>
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground via-green-500 to-emerald-500 bg-clip-text text-transparent font-inter tracking-tight">
-                The Kitchen
-              </h1>
-              <p className="text-muted-foreground font-medium">
-                {profile.goal === 'muscle-gain' ? "Mode: Hypertrophy (Bulk)" : 
+      <PageHeader 
+        icon={Utensils}
+        title="The Kitchen"
+        subtitle={profile.goal === 'muscle-gain' ? "Mode: Hypertrophy (Bulk)" : 
                  profile.goal === 'fat-loss' ? "Mode: Cutting (Deficit)" : "Mode: Maintenance"}
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-3">
-             <Button 
+        actions={
+          <>
+            <ThemedButton 
               variant="outline" 
               onClick={() => setShowGoalSettings(true)} 
-              className="border-border/50 text-muted-foreground hover:text-foreground hover:bg-gradient-to-r hover:from-green-500/20 hover:to-emerald-500/20 hover:border-green-500/30 bg-background/30 backdrop-blur-sm font-medium rounded-xl transition-all duration-200"
               disabled={isLoading}
             >
               <Edit2 className="h-4 w-4 mr-2"/> Edit Goals
-             </Button>
-             <Button 
+            </ThemedButton>
+            <ThemedButton 
               variant="outline" 
               size="icon"
               onClick={fetchDailyData}
               disabled={isLoading}
-              className="border-border/50 hover:bg-background/50 backdrop-blur-sm rounded-xl transition-all duration-200 text-muted-foreground hover:text-foreground"
-             >
-               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-             </Button>
-          </div>
-        </div>
-      </div>
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </ThemedButton>
+          </>
+        }
+      />
 
       {/* Main Content */}
-      <div className="flex-1 px-6 pb-6">
+      <div className="flex-1 px-6 pb-8">
         {/* Tabs */}
         <Tabs defaultValue="meal" className="w-full">
-          <TabsList className="bg-card/80 backdrop-blur-xl border border-border/50 p-1 rounded-2xl w-full md:w-auto shadow-lg shadow-primary/5 mb-6">
-            <TabsTrigger value="meal" className="gap-2 rounded-xl font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25">
-              <Utensils className="w-4 h-4" />
+          <TabsList className="bg-card/80 backdrop-blur-xl border border-border/50 p-1.5 rounded-2xl w-full md:w-auto shadow-2xl shadow-primary/5 mb-8">
+            <ThemedTabsTrigger value="meal" icon={Utensils}>
               Meal
-            </TabsTrigger>
-            <TabsTrigger value="history" className="gap-2 rounded-xl font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25">
-              <History className="w-4 h-4" />
+            </ThemedTabsTrigger>
+            <ThemedTabsTrigger value="history" icon={History}>
               History
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="gap-2 rounded-xl font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25">
-              <BarChart3 className="w-4 h-4" />
+            </ThemedTabsTrigger>
+            <ThemedTabsTrigger value="analytics" icon={BarChart3}>
               Analytics
-            </TabsTrigger>
+            </ThemedTabsTrigger>
           </TabsList>
 
           {/* Meal Tab Content */}
           <TabsContent value="meal" className="mt-0">
             {/* Daily/Weekly Toggle for Meal Tab */}
-            <div className="flex gap-2 w-fit mb-6">
+            <div className="flex gap-3 w-fit mb-8">
               <Button 
                 variant={viewMode === 'daily' ? 'default' : 'outline'} 
                 onClick={() => setViewMode('daily')} 
-                className={`font-medium text-xs px-6 rounded-xl transition-all duration-200 ${
+                className={`font-semibold text-sm px-8 py-3 rounded-xl transition-all duration-300 ${
                   viewMode === 'daily' 
-                    ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/25" 
-                    : "border-border/50 text-muted-foreground hover:text-foreground hover:bg-gradient-to-r hover:from-green-500/20 hover:to-emerald-500/20 hover:border-green-500/30 bg-background/30 backdrop-blur-sm"
+                    ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-xl shadow-green-500/30 ring-1 ring-green-400/20" 
+                    : "border-border/60 text-muted-foreground hover:text-foreground hover:bg-gradient-to-r hover:from-green-500/20 hover:to-emerald-500/20 hover:border-green-500/40 bg-card backdrop-blur-sm shadow-lg hover:shadow-green-500/10"
                 }`}
+                style={viewMode !== 'daily' ? {} : {}}
                 disabled={isLoading}
               >TODAY</Button>
               <Button 
                 variant={viewMode === 'weekly' ? 'default' : 'outline'} 
                 onClick={() => setViewMode('weekly')} 
-                className={`font-medium text-xs px-6 rounded-xl transition-all duration-200 ${
+                className={`font-semibold text-sm px-8 py-3 rounded-xl transition-all duration-300 ${
                   viewMode === 'weekly' 
-                    ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/25" 
-                    : "border-border/50 text-muted-foreground hover:text-foreground hover:bg-gradient-to-r hover:from-green-500/20 hover:to-emerald-500/20 hover:border-green-500/30 bg-background/30 backdrop-blur-sm"
+                    ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-xl shadow-green-500/30 ring-1 ring-green-400/20" 
+                    : "border-border/60 text-muted-foreground hover:text-foreground hover:bg-gradient-to-r hover:from-green-500/20 hover:to-emerald-500/20 hover:border-green-500/40 bg-card backdrop-blur-sm shadow-lg hover:shadow-green-500/10"
                 }`}
+                style={viewMode !== 'weekly' ? {} : {}}
                 disabled={isLoading}
               >WEEKLY</Button>
             </div>
@@ -405,16 +396,16 @@ export default function KitchenPage() {
                   onToggleFavorite={(id, fav) => handleToggleFavorite(id, fav)} // Pass toggle handler
                 />
 
-                <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5">
-                  <div className="p-6 border-b border-border bg-gradient-to-r from-green-500/10 via-transparent to-emerald-500/10">
+                <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5 ring-1 ring-border/30">
+                  <div className="p-8 border-b border-border bg-gradient-to-r from-green-500/10 via-transparent to-emerald-500/10 rounded-t-3xl">
                     <div className="flex justify-between items-center">
-                      <h2 className="text-xl font-bold text-foreground font-inter">
+                      <h2 className="text-2xl font-bold text-foreground font-inter tracking-tight">
                         {viewMode === 'daily' ? "Today's Log" : "Weekly Overview"}
                       </h2>
                       {viewMode === 'daily' && (
                         <Button 
                           onClick={() => setIsAddMealOpen(true)} 
-                          className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white border-0 shadow-lg shadow-green-500/25 rounded-xl font-medium text-sm transition-all duration-200 hover:shadow-xl hover:shadow-green-500/30"
+                          className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white border-0 shadow-xl shadow-green-500/30 rounded-xl font-semibold text-sm transition-all duration-300 hover:shadow-2xl hover:shadow-green-500/40 ring-1 ring-green-400/20 px-6 py-3"
                         >
                           <Plus className="h-4 w-4 mr-2"/> Add Meal
                         </Button>
@@ -427,14 +418,14 @@ export default function KitchenPage() {
                       // Daily View
                       <>
                         {isLoading && meals.length === 0 ? (
-                            <div className="h-64 flex items-center justify-center text-muted-foreground">
-                                <div className="flex items-center space-x-3">
-                                  <div className="flex space-x-1">
-                                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce"></div>
-                                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                            <div className="h-72 flex items-center justify-center text-muted-foreground">
+                                <div className="flex items-center space-x-4">
+                                  <div className="flex space-x-2">
+                                    <div className="w-3 h-3 bg-green-400 rounded-full animate-bounce shadow-lg shadow-green-400/50"></div>
+                                    <div className="w-3 h-3 bg-green-400 rounded-full animate-bounce shadow-lg shadow-green-400/50" style={{animationDelay: '0.1s'}}></div>
+                                    <div className="w-3 h-3 bg-green-400 rounded-full animate-bounce shadow-lg shadow-green-400/50" style={{animationDelay: '0.2s'}}></div>
                                   </div>
-                                  <span className="text-sm font-medium">Loading meals...</span>
+                                  <span className="text-base font-medium">Loading meals...</span>
                                 </div>
                             </div>
                         ) : meals.length > 0 ? (
@@ -480,10 +471,10 @@ export default function KitchenPage() {
                               })}
                             </div>
                         ) : (
-                            <div className="h-64 flex flex-col items-center justify-center text-muted-foreground bg-gradient-to-br from-orange-500/5 to-red-500/5 m-6 rounded-2xl border border-orange-500/20">
-                                <Utensils className="h-16 w-16 mb-4 opacity-30" />
-                                <p className="text-sm mb-2 font-medium">No meals logged yet.</p>
-                                <Button variant="link" onClick={() => setIsAddMealOpen(true)} className="text-orange-500 hover:text-orange-600 h-auto p-0 font-medium">Log your first meal</Button>
+                            <div className="h-72 flex flex-col items-center justify-center text-muted-foreground bg-gradient-to-br from-green-500/5 to-emerald-500/5 m-8 rounded-3xl border border-green-500/20 ring-1 ring-green-500/10">
+                                <Utensils className="h-20 w-20 mb-6 opacity-40 text-green-400" />
+                                <p className="text-lg mb-3 font-semibold text-foreground">No meals logged yet.</p>
+                                <Button variant="link" onClick={() => setIsAddMealOpen(true)} className="text-green-400 hover:text-green-300 h-auto p-0 font-semibold text-base transition-all duration-300">Log your first meal</Button>
                             </div>
                         )}
                       </>
@@ -491,18 +482,18 @@ export default function KitchenPage() {
                       // Weekly View
                       <>
                         {isLoading ? (
-                          <div className="h-64 flex items-center justify-center text-muted-foreground">
-                              <div className="flex items-center space-x-3">
-                                <div className="flex space-x-1">
-                                  <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce"></div>
-                                  <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                                  <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                          <div className="h-72 flex items-center justify-center text-muted-foreground">
+                              <div className="flex items-center space-x-4">
+                                <div className="flex space-x-2">
+                                  <div className="w-3 h-3 bg-green-400 rounded-full animate-bounce shadow-lg shadow-green-400/50"></div>
+                                  <div className="w-3 h-3 bg-green-400 rounded-full animate-bounce shadow-lg shadow-green-400/50" style={{animationDelay: '0.1s'}}></div>
+                                  <div className="w-3 h-3 bg-green-400 rounded-full animate-bounce shadow-lg shadow-green-400/50" style={{animationDelay: '0.2s'}}></div>
                                 </div>
-                                <span className="text-sm font-medium">Loading weekly data...</span>
+                                <span className="text-base font-medium">Loading weekly data...</span>
                               </div>
                           </div>
                         ) : weeklyMeals && weeklyTotals && weeklyGoals ? (
-                          <div className="p-6">
+                          <div className="p-8">
                             <WeeklyMealCard 
                               weeklyMeals={weeklyMeals}
                               weeklyTotals={weeklyTotals}
@@ -510,9 +501,9 @@ export default function KitchenPage() {
                             />
                           </div>
                         ) : (
-                          <div className="h-64 flex flex-col items-center justify-center text-muted-foreground bg-gradient-to-br from-orange-500/5 to-red-500/5 m-6 rounded-2xl border border-orange-500/20">
-                              <BarChart3 className="h-16 w-16 mb-4 opacity-30" />
-                              <p className="text-sm mb-2 font-medium">No weekly data available.</p>
+                          <div className="h-72 flex flex-col items-center justify-center text-muted-foreground bg-gradient-to-br from-green-500/5 to-emerald-500/5 m-8 rounded-3xl border border-green-500/20 ring-1 ring-green-500/10">
+                              <BarChart3 className="h-20 w-20 mb-6 opacity-40 text-green-400" />
+                              <p className="text-lg mb-3 font-semibold text-foreground">No weekly data available.</p>
                           </div>
                         )}
                       </>
@@ -554,12 +545,12 @@ export default function KitchenPage() {
 
           {/* History Tab Content */}
           <TabsContent value="history" className="mt-0">
-            <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5">
-              <div className="p-6 border-b border-border bg-gradient-to-r from-green-500/10 via-transparent to-emerald-500/10">
-                <h2 className="text-xl font-bold text-foreground font-inter">Meal History</h2>
-                <p className="text-sm text-muted-foreground mt-1">Track your nutrition journey</p>
+            <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5 ring-1 ring-border/30">
+              <div className="p-8 border-b border-border bg-gradient-to-r from-green-500/10 via-transparent to-emerald-500/10 rounded-t-3xl">
+                <h2 className="text-2xl font-bold text-foreground font-inter tracking-tight">Meal History</h2>
+                <p className="text-base text-muted-foreground mt-2">Track your nutrition journey</p>
               </div>
-              <div className="p-6">
+              <div className="p-8">
                 <MealHistory 
                   goals={goals}
                   onToggleFavorite={handleToggleFavorite}
@@ -570,12 +561,12 @@ export default function KitchenPage() {
 
           {/* Analytics Tab Content */}
           <TabsContent value="analytics" className="mt-0">
-            <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5">
-              <div className="p-6 border-b border-border bg-gradient-to-r from-green-500/10 via-transparent to-emerald-500/10">
-                <h2 className="text-xl font-bold text-foreground font-inter">Nutrition Analytics</h2>
-                <p className="text-sm text-muted-foreground mt-1">Insights and trends</p>
+            <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5 ring-1 ring-border/30">
+              <div className="p-8 border-b border-border bg-gradient-to-r from-green-500/10 via-transparent to-emerald-500/10 rounded-t-3xl">
+                <h2 className="text-2xl font-bold text-foreground font-inter tracking-tight">Nutrition Analytics</h2>
+                <p className="text-base text-muted-foreground mt-2">Insights and trends</p>
               </div>
-              <div className="p-6">
+              <div className="p-8">
                 <MealAnalytics 
                   goals={goals}
                   profile={profile}

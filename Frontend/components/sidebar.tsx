@@ -5,6 +5,7 @@ import { LayoutGrid, Apple, Swords, Map, Users, Settings, Brain, ChevronLeft, Ch
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useSidebar } from "@/components/sidebar-context"
+import { getThemeClasses } from "@/lib/pageThemes"
 
 const menuItems = [
   { name: "Dashboard", icon: LayoutGrid, href: "/dashboard" },
@@ -21,6 +22,7 @@ const aiCoachItem = { name: "AI Coach", icon: Brain, href: "/ai-coach" }
 export function Sidebar() {
   const { collapsed, setCollapsed } = useSidebar()
   const pathname = usePathname()
+  const themeClasses = getThemeClasses(pathname)
 
   return (
     <aside
@@ -34,17 +36,32 @@ export function Sidebar() {
         <div className="flex items-center justify-between mb-8 mt-2">
           {!collapsed && (
             <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-purple-600 shadow-lg shadow-cyan-500/50">
+              <div 
+                className={cn("flex h-8 w-8 items-center justify-center rounded-lg", themeClasses.logoGradient, themeClasses.logoShadow)}
+                style={themeClasses.logoGradientStyle ? { 
+                  ...themeClasses.logoGradientStyle,
+                  ...themeClasses.logoShadowStyle 
+                } : undefined}
+              >
                 <Zap className="h-5 w-5 text-white" />
               </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent font-orbitron">
+              <h1 
+                className={cn("text-2xl font-bold font-orbitron", themeClasses.textGradient)}
+                style={themeClasses.textGradientStyle || undefined}
+              >
                 FitQuest
               </h1>
             </Link>
           )}
           {collapsed && (
             <Link href="/dashboard" className="flex items-center justify-center w-full">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-purple-600 shadow-lg shadow-cyan-500/50">
+              <div 
+                className={cn("flex h-8 w-8 items-center justify-center rounded-lg", themeClasses.logoGradient, themeClasses.logoShadow)}
+                style={themeClasses.logoGradientStyle ? { 
+                  ...themeClasses.logoGradientStyle,
+                  ...themeClasses.logoShadowStyle 
+                } : undefined}
+              >
                 <Zap className="h-5 w-5 text-white" />
               </div>
             </Link>
@@ -70,8 +87,8 @@ export function Sidebar() {
                   className={cn(
                     "flex items-center gap-3 px-3 py-3 rounded-xl transition-all",
                     isActive
-                      ? "bg-primary/10 text-primary border border-primary/30"
-                      : "text-muted-foreground hover:text-primary hover:bg-accent",
+                      ? themeClasses.activeItem
+                      : `text-muted-foreground hover:text-primary hover:bg-accent`,
                   )}
                 >
                   <Icon className="h-5 w-5 flex-shrink-0" />
@@ -88,8 +105,8 @@ export function Sidebar() {
             className={cn(
               "flex items-center gap-3 px-3 py-3 rounded-xl transition-all border-2 mt-4",
               pathname === aiCoachItem.href
-                ? "bg-secondary/20 text-secondary border-secondary/50 shadow-lg shadow-purple-500/20"
-                : "text-secondary border-secondary/30 hover:bg-secondary/10 hover:border-secondary/50",
+                ? "bg-purple-500/20 text-purple-400 border-purple-500/50 shadow-lg shadow-purple-500/20"
+                : "text-purple-400 border-purple-500/30 hover:bg-purple-500/10 hover:border-purple-500/50",
             )}
           >
             <Brain className="h-5 w-5 flex-shrink-0" />

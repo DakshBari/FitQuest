@@ -5,97 +5,107 @@
 
 /* FitQuest theme with impressive light and dark modes */
 :root {
-  /* Light Mode - Clean, bright futuristic aesthetic */
-  --background: 250 100% 98%; /* Very light blue-gray */
-  --foreground: 220 20% 15%; /* Dark blue-gray text */
+  /* Light Mode - Enhanced modern light theme with better contrast */
+  --background: 244 100% 99.5%; /* #FAFBFF - Ultra-light purple-tinted background */
+  --foreground: 220 30% 8%; /* Very dark blue-gray text for maximum contrast */
 
-  --card: 0 0% 100%; /* Pure white cards */
-  --card-foreground: 220 20% 15%;
+  --card: 0 0% 99%; /* #FCFCFC - Pure white components with subtle warmth */
+  --card-foreground: 220 30% 8%;
 
-  --popover: 0 0% 100%;
-  --popover-foreground: 220 20% 15%;
+  --popover: 0 0% 99%; /* #FCFCFC */
+  --popover-foreground: 220 30% 8%;
 
-  --primary: 188 92% 45%; /* Bright cyan */
+  --primary: 267 41% 75%; /* #9583FF - Custom purple primary */
   --primary-foreground: 0 0% 100%;
 
   --secondary: 271 76% 53%; /* Vibrant purple */
   --secondary-foreground: 0 0% 100%;
 
-  --muted: 220 20% 94%; /* Light gray */
-  --muted-foreground: 220 15% 45%;
+  --muted: 244 70% 97%; /* More saturated light purple-tinted muted */
+  --muted-foreground: 220 25% 35%; /* Darker for excellent readability */
 
-  --accent: 188 92% 95%; /* Very light cyan */
-  --accent-foreground: 188 92% 20%;
+  --accent: 244 70% 95%; /* More saturated light purple accent */
+  --accent-foreground: 220 30% 8%;
 
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
 
-  --border: 220 20% 88%;
-  --input: 220 20% 94%;
-  --ring: 188 92% 45%;
+  --border: 244 50% 92%; /* More visible light purple-tinted borders */
+  --input: 244 70% 97%; /* Light purple-tinted inputs */
+  --ring: 267 41% 75%; /* Match primary color */
 
-  --chart-1: 188 92% 45%; /* Cyan */
+  --chart-1: 142 76% 45%; /* Green */
   --chart-2: 271 76% 53%; /* Purple */
   --chart-3: 330 81% 60%; /* Pink */
-  --chart-4: 142 76% 36%; /* Green */
+  --chart-4: 188 92% 45%; /* Cyan */
   --chart-5: 45 93% 47%; /* Yellow */
 
   --radius: 1rem;
 
-  --sidebar: 0 0% 100%;
-  --sidebar-foreground: 220 20% 15%;
-  --sidebar-primary: 188 92% 45%;
+  --sidebar: 244 100% 99.5%; /* #FAFBFF - Same as background */
+  --sidebar-foreground: 220 30% 8%;
+  --sidebar-primary: 267 41% 75%; /* #9583FF - Match primary */
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 220 20% 94%;
-  --sidebar-accent-foreground: 220 20% 15%;
-  --sidebar-border: 220 20% 88%;
-  --sidebar-ring: 188 92% 45%;
+  --sidebar-accent: 0 0% 99%; /* #FCFCFC */
+  --sidebar-accent-foreground: 220 30% 8%;
+  --sidebar-border: 244 50% 92%;
+  --sidebar-ring: 267 41% 75%; /* Match primary */
+
+  /* Custom Sanctuary Color - #CD96FF */
+  --sanctuary: 267 100% 79%; /* #CD96FF converted to HSL */
+  --sanctuary-light: 267 100% 85%; /* Lighter variant */
+  --sanctuary-dark: 267 100% 73%; /* Darker variant */
 }
 
 .dark {
-  /* Dark Mode - Deep charcoal and darkest gray with neon accents */
-  --background: 0 0% 9%; /* Charcoal black */
-  --foreground: 0 0% 96%; /* Nearly white text */
+  /* Dark Mode - Ultra modern with #0A0A0A background and even darker components */
+  --background: 0 0% 4%; /* #0A0A0A - Ultra dark background */
+  --foreground: 0 0% 98%; /* Nearly white text */
 
-  --card: 0 0% 13%; /* Darkest gray */
-  --card-foreground: 0 0% 96%;
+  --card: 0 0% 6%; /* #0F0F0F - Even darker components */
+  --card-foreground: 0 0% 98%;
 
-  --popover: 0 0% 9%; /* Charcoal black */
-  --popover-foreground: 0 0% 96%;
+  --popover: 0 0% 6%; /* #0F0F0F - Even darker */
+  --popover-foreground: 0 0% 98%;
 
-  --primary: 188 86% 53%; /* Bright cyan */
-  --primary-foreground: 0 0% 13%;
+  --primary: 267 41% 75%; /* #9583FF - Custom purple primary */
+  --primary-foreground: 0 0% 98%;
 
-  --secondary: 271 81% 60%; /* Electric purple */
-  --secondary-foreground: 0 0% 96%;
+  --secondary: 267 41% 65%; /* Darker purple for dark mode */
+  --secondary-foreground: 0 0% 98%;
 
-  --muted: 0 0% 18%; /* Dark gray */
-  --muted-foreground: 0 0% 65%;
+  --muted: 0 0% 8%; /* Darker muted background */
+  --muted-foreground: 0 0% 70%;
 
-  --accent: 271 81% 20%; /* Deep purple accent */
-  --accent-foreground: 0 0% 96%;
+  --accent: 267 41% 15%; /* Deep purple accent */
+  --accent-foreground: 0 0% 98%;
 
   --destructive: 0 62% 50%;
-  --destructive-foreground: 0 0% 96%;
+  --destructive-foreground: 0 0% 98%;
 
-  --border: 0 0% 16%; /* Dark gray border */
-  --input: 0 0% 16%; /* Dark gray input */
-  --ring: 188 86% 53%;
+  --border: 0 0% 12%; /* Darker borders */
+  --input: 0 0% 6%; /* #0F0F0F - Same as darker components */
+  --ring: 267 41% 75%; /* Match primary */
 
-  --chart-1: 188 86% 53%;
-  --chart-2: 271 81% 60%;
-  --chart-3: 330 81% 60%;
-  --chart-4: 142 76% 45%;
-  --chart-5: 45 93% 58%;
+  --chart-1: 142 76% 45%; /* Green */
+  --chart-2: 158 64% 52%; /* Emerald */
+  --chart-3: 173 58% 39%; /* Teal */
+  --chart-4: 188 86% 53%; /* Cyan */
+  --chart-5: 45 93% 58%; /* Yellow */
 
-  --sidebar: 0 0% 9%; /* Charcoal black */
-  --sidebar-foreground: 0 0% 96%;
-  --sidebar-primary: 188 86% 53%;
-  --sidebar-primary-foreground: 0 0% 13%;
-  --sidebar-accent: 0 0% 18%;
-  --sidebar-accent-foreground: 0 0% 96%;
-  --sidebar-border: 0 0% 16%;
-  --sidebar-ring: 188 86% 53%;
+  --sidebar: 0 0% 4%; /* #0A0A0A - Same as background */
+  --sidebar-foreground: 0 0% 98%;
+  --sidebar-primary: 267 41% 75%; /* #9583FF - Match primary */
+  --sidebar-primary-foreground: 0 0% 4%;
+  --sidebar-accent: 0 0% 6%; /* #0F0F0F - Darker */
+  --sidebar-accent-foreground: 0 0% 98%;
+  --sidebar-border: 0 0% 12%;
+  --sidebar-ring: 267 41% 75%; /* Match primary */
+
+  /* Custom Sanctuary Color - #CD96FF */
+  --sanctuary: 267 100% 79%; /* #CD96FF converted to HSL */
+  --sanctuary-light: 267 100% 85%; /* Lighter variant */
+  --sanctuary-dark: 267 100% 73%; /* Darker variant */
 }
 
 @theme inline {
@@ -180,6 +190,17 @@
 }
 
 @layer utilities {
+  /* Light mode specific enhancements */
+  .light {
+    /* Enhanced shadows for light mode */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  }
+
   /* Lavender color utilities */
   .bg-lavender-50 { background-color: hsl(var(--color-lavender-50)); }
   .bg-lavender-100 { background-color: hsl(var(--color-lavender-100)); }
@@ -247,6 +268,25 @@
   .border-lilac-700 { border-color: hsl(var(--color-lilac-700)); }
   .border-lilac-800 { border-color: hsl(var(--color-lilac-800)); }
   .border-lilac-900 { border-color: hsl(var(--color-lilac-900)); }
+  
+  /* Sanctuary color utilities - #CD96FF */
+  .bg-sanctuary { background-color: hsl(var(--sanctuary)); }
+  .bg-sanctuary-light { background-color: hsl(var(--sanctuary-light)); }
+  .bg-sanctuary-dark { background-color: hsl(var(--sanctuary-dark)); }
+  
+  .text-sanctuary { color: hsl(var(--sanctuary)); }
+  .text-sanctuary-light { color: hsl(var(--sanctuary-light)); }
+  .text-sanctuary-dark { color: hsl(var(--sanctuary-dark)); }
+  .text-sanctuary-hover { color: #9583FF; } /* Custom hover color */
+  
+  .border-sanctuary { border-color: hsl(var(--sanctuary)); }
+  .border-sanctuary-light { border-color: hsl(var(--sanctuary-light)); }
+  .border-sanctuary-dark { border-color: hsl(var(--sanctuary-dark)); }
+  
+  .shadow-sanctuary { box-shadow: 0 10px 15px -3px hsl(var(--sanctuary) / 0.1), 0 4px 6px -4px hsl(var(--sanctuary) / 0.1); }
+  
+  /* Sanctuary hover utilities */
+  .hover\:text-sanctuary-hover:hover { color: #9583FF !important; }
 }
 
 /* Enhanced animations */

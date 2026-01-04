@@ -51,7 +51,7 @@ export function StrongholdSidebar({ strongholds, selectedId, onSelect }: Strongh
                         {hold.captured && <Crown className="h-5 w-5 text-green-400" />}
                     </div>
 
-                    <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/5 relative z-10">
+                    <div className="flex justify-between items-center mt-3 pt-3 border-t border-border/20 relative z-10">
                         <span className="text-sm text-muted-foreground">{hold.challenge}</span>
                         <span className="px-2 py-1 bg-amber-500/20 border border-amber-500/50 rounded text-amber-400 text-xs font-semibold">
                             +{hold.reward} XP

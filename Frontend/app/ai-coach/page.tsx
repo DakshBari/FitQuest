@@ -1,14 +1,20 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import { usePathname } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Send, Mic, MicOff, Volume2, VolumeX, MessageSquare, Clock, Trash2, Sparkles, Zap, Brain, Plus, Settings, User } from "lucide-react"
 import { aiCoachService, type Message, type ChatSession } from "@/services/aiCoachService"
 import { useToast } from "@/hooks/use-toast"
+import { getThemeClasses } from "@/lib/pageThemes"
+import { cn } from "@/lib/utils"
+import { PageHeader } from "@/components/page-header"
 
 export default function AICoachPage() {
+  const pathname = usePathname()
+  const themeClasses = getThemeClasses(pathname)
   const [message, setMessage] = useState("")
   const [currentMessages, setCurrentMessages] = useState<Message[]>([
     {
@@ -353,21 +359,12 @@ export default function AICoachPage() {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* Modern Header */}
-      <div className="mb-4 flex-shrink-0 px-6 pt-6">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="relative">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-purple-500/25 dark:shadow-purple-500/10">
-              <Brain className="w-6 h-6 text-white" />
-            </div>
-            <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-background animate-pulse"></div>
-          </div>
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground via-purple-500 to-cyan-500 bg-clip-text text-transparent font-inter tracking-tight">
-              The Oracle
-            </h1>
-            <p className="text-muted-foreground font-medium">AI-Powered Fitness Intelligence</p>
-          </div>
-        </div>
+      <PageHeader 
+        icon={Brain}
+        title="The Oracle"
+        subtitle="AI-Powered Fitness Intelligence"
+        className="mb-4 pt-6 pb-0"
+      />
         
         {aiStatus === 'offline' && (
           <div className="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-2xl backdrop-blur-sm">

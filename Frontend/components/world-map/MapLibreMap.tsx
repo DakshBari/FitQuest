@@ -123,7 +123,7 @@ export function MapLibreMap({ userCoordinates, capturedAreas, strongholds, initi
                 "circle-radius": 8,
                 "circle-color": "#ef4444",
                 "circle-stroke-width": 2,
-                "circle-stroke-color": "#1c1c1c"
+                "circle-stroke-color": "#ffffff"
             }
         })
 
@@ -207,7 +207,7 @@ export function MapLibreMap({ userCoordinates, capturedAreas, strongholds, initi
   return (
     <div 
       ref={mapContainer} 
-      className="absolute inset-0 w-full h-full rounded-xl overflow-hidden bg-[#09090b]"
+      className="absolute inset-0 w-full h-full rounded-xl overflow-hidden bg-muted/20"
     />
   )
 }

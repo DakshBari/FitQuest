@@ -136,7 +136,7 @@ export default function WorldMapPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-80px)] p-4 space-y-4 bg-[#050505]">
+    <div className="h-[calc(100vh-80px)] p-4 space-y-4 bg-background">
       {/* Top Bar: Controls */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-foreground font-orbitron tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">

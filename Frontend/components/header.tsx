@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { usePathname } from "next/navigation"
 import { Moon, Sun, Zap, Coins, Settings, LogOut } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useSidebar } from "@/components/sidebar-context"
 import { useAuth } from "@/contexts/AuthContext"
+import { getThemeClasses } from "@/lib/pageThemes"
 import { cn } from "@/lib/utils"
 
 export function Header() {
@@ -22,6 +24,8 @@ export function Header() {
   const { collapsed } = useSidebar()
   const router = useRouter()
   const { user, logout } = useAuth()
+  const pathname = usePathname()
+  const themeClasses = getThemeClasses(pathname)
 
   // Robust Initials Function
   const getInitials = (name?: string) => {
@@ -59,7 +63,12 @@ export function Header() {
         <div className="flex-1 max-w-2xl mx-8">
           <div className="space-y-1">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-primary font-semibold font-orbitron">
+              <span 
+                className={cn("font-semibold font-orbitron", themeClasses.theme.primary)}
+                style={themeClasses.textGradientStyle ? {
+                  ...themeClasses.textGradientStyle
+                } : undefined}
+              >
                 Level {currentLevel}
               </span>
               <span className="text-muted-foreground">
@@ -68,8 +77,12 @@ export function Header() {
             </div>
             <div className="relative h-3 bg-muted rounded-full overflow-hidden border border-primary/30">
               <div
-                className="absolute inset-y-0 left-0 bg-gradient-to-r from-cyan-500 to-cyan-400 rounded-full shadow-lg shadow-cyan-500/50 transition-all duration-1000"
-                style={{ width: `${xpPercentage}%` }}
+                className={cn("absolute inset-y-0 left-0 rounded-full shadow-lg transition-all duration-1000", themeClasses.buttonGradient)}
+                style={themeClasses.buttonGradientStyle ? { 
+                  ...themeClasses.buttonGradientStyle,
+                  width: `${xpPercentage}%`,
+                  boxShadow: `0 4px 14px 0 ${themeClasses.theme.primary?.replace('text-', '') || 'hsl(var(--primary))'}/50`
+                } : { width: `${xpPercentage}%` }}
               />
             </div>
           </div>
@@ -108,7 +121,7 @@ export function Header() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="relative focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full">
-                <Avatar className="h-10 w-10 border-2 border-primary/50 cursor-pointer hover:border-primary transition-colors">
+                <Avatar className={cn("h-10 w-10 border-2 cursor-pointer hover:border-primary transition-colors", `border-${themeClasses.theme.primary?.replace('text-', '') || 'primary'}/50`)}>
                   {user?.avatar ? (
                     <AvatarImage
                       src={user.avatar}
@@ -116,7 +129,12 @@ export function Header() {
                     />
                   ) : null}
 
-                  <AvatarFallback className="bg-muted text-primary font-semibold">
+                  <AvatarFallback 
+                    className={cn("bg-muted font-semibold", themeClasses.theme.primary)}
+                    style={themeClasses.textGradientStyle ? {
+                      ...themeClasses.textGradientStyle
+                    } : undefined}
+                  >
                     {getInitials(user?.username)}
                   </AvatarFallback>
                 </Avatar>
