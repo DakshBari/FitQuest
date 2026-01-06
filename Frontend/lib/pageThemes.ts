@@ -52,14 +52,14 @@ export const pageThemes: Record<string, PageTheme> = {
     borderColor: 'border-purple-500/30'
   },
   '/world-map': {
-    primary: 'text-blue-500',
-    primaryHover: 'hover:text-blue-400',
-    primaryLight: 'bg-blue-500/10',
-    primaryDark: 'bg-blue-500/20',
-    shadow: 'shadow-blue-500/20',
-    gradientFrom: 'from-blue-400',
-    gradientTo: 'to-blue-600',
-    borderColor: 'border-blue-500/30'
+    primary: 'text-[#2B7FFF]',
+    primaryHover: 'hover:text-[#4A90FF]',
+    primaryLight: 'bg-[#2B7FFF]/10',
+    primaryDark: 'bg-[#2B7FFF]/20',
+    shadow: 'shadow-[#2B7FFF]/20',
+    gradientFrom: 'from-[#2B7FFF]',
+    gradientTo: 'to-[#4A90FF]',
+    borderColor: 'border-[#2B7FFF]/30'
   },
   '/guilds': {
     primary: 'text-teal-500',

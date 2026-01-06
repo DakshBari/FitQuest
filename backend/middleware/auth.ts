@@ -41,3 +41,6 @@ export const protect = async (
   }
 };
 
+// Alias for compatibility
+export const authenticateToken = protect;
+

@@ -1,7 +1,9 @@
 "use client"
 
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Play, Square } from "lucide-react"
+import { Play, Square, Activity, Zap } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface ActivityControlsProps {
   isTracking: boolean
@@ -10,30 +12,81 @@ interface ActivityControlsProps {
 }
 
 export function ActivityControls({ isTracking, onStart, onStop }: ActivityControlsProps) {
+  const [isStarting, setIsStarting] = useState(false)
+
+  const handleStart = async (type: 'run' | 'cycle') => {
+    setIsStarting(true)
+    setTimeout(() => {
+      onStart(type)
+      setIsStarting(false)
+    }, 200)
+  }
+
   return (
     <div className="flex gap-3">
       {!isTracking ? (
         <>
+          {/* Start Run Button */}
           <Button 
-            onClick={() => onStart('run')}
-            className="bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white font-semibold shadow-[0_0_15px_rgba(6,182,212,0.4)]"
+            onClick={() => handleStart('run')}
+            disabled={isStarting}
+            className={cn(
+              "px-4 py-2 h-auto",
+              "bg-emerald-500 hover:bg-emerald-600",
+              "disabled:bg-emerald-500/50",
+              "text-white font-medium text-sm",
+              "rounded-lg border-0",
+              "shadow-sm hover:shadow-md",
+              "transition-all duration-200",
+              "hover:scale-[1.02]",
+              "active:scale-[0.98]"
+            )}
           >
-            <Play className="h-4 w-4 mr-2" />
+            {isStarting ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+            ) : (
+              <Activity className="h-4 w-4 mr-2" />
+            )}
             Start Run
           </Button>
+
+          {/* Start Cycle Button */}
           <Button 
-            onClick={() => onStart('cycle')}
-            className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold shadow-[0_0_15px_rgba(168,85,247,0.4)]"
+            onClick={() => handleStart('cycle')}
+            disabled={isStarting}
+            className={cn(
+              "px-4 py-2 h-auto",
+              "bg-purple-500 hover:bg-purple-600",
+              "disabled:bg-purple-500/50",
+              "text-white font-medium text-sm",
+              "rounded-lg border-0",
+              "shadow-sm hover:shadow-md",
+              "transition-all duration-200",
+              "hover:scale-[1.02]",
+              "active:scale-[0.98]"
+            )}
           >
-            <Play className="h-4 w-4 mr-2" />
+            {isStarting ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+            ) : (
+              <Zap className="h-4 w-4 mr-2" />
+            )}
             Start Cycle
           </Button>
         </>
       ) : (
         <Button 
           onClick={onStop}
-          variant="destructive"
-          className="bg-red-500/90 hover:bg-red-500 text-white font-bold border border-red-400/50 shadow-[0_0_15px_rgba(239,68,68,0.4)]"
+          className={cn(
+            "px-4 py-2 h-auto",
+            "bg-red-500 hover:bg-red-600",
+            "text-white font-medium text-sm",
+            "rounded-lg border-0",
+            "shadow-sm hover:shadow-md",
+            "transition-all duration-200",
+            "hover:scale-[1.02]",
+            "active:scale-[0.98]"
+          )}
         >
           <Square className="h-4 w-4 mr-2" />
           Stop Activity

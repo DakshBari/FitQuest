@@ -41,12 +41,6 @@ export default function SanctuaryPage() {
             <ThemedTabsTrigger value="stretching" icon={Moon}>
               Stretching
             </ThemedTabsTrigger>
-          </TabsList> 
-              className="gap-2 rounded-xl font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-lavender-500 data-[state=active]:to-lilac-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-lavender-500/25"
-            >
-              <Flower2 className="w-4 h-4" />
-              Stretching
-            </TabsTrigger>
           </TabsList>
 
           {/* Meditation Tab Content */}

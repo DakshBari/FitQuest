@@ -15,8 +15,8 @@ export default function DashboardLayout({
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       <SidebarProvider>
         <div className="min-h-screen bg-background">
-          <Sidebar />
           <Header />
+          <Sidebar />
           <Suspense fallback={null}>
             <DashboardContent>{children}</DashboardContent>
           </Suspense>

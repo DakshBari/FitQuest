@@ -15,6 +15,7 @@ import { dashboardRoutes } from './routes/dashboard';
 import { aiCoachRoutes } from './routes/aiCoach';
 import { userRoutes } from './routes/users';
 import { hydrationRoutes } from './routes/hydration';
+import worldMapRoutes from './routes/worldMap';
 
 dotenv.config();
 
@@ -48,6 +49,7 @@ app.use('/api/guilds', guildRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/ai-coach', aiCoachRoutes);
 app.use('/api/hydration', hydrationRoutes);
+app.use('/api/world-map', worldMapRoutes);
 
 // Error handling middleware (must be last)
 app.use(errorHandler);

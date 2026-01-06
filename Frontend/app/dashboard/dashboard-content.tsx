@@ -9,7 +9,7 @@ export function DashboardContent({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebar()
 
   return (
-    <main className={cn("pt-20 min-h-screen transition-all duration-300", collapsed ? "ml-20" : "ml-0 md:ml-64")}>
+    <main className={cn("pt-16 min-h-screen transition-all duration-300", collapsed ? "ml-16" : "ml-64")}>
       {children}
     </main>
   )

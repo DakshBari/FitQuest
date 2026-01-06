@@ -365,7 +365,8 @@ export default function AICoachPage() {
         subtitle="AI-Powered Fitness Intelligence"
         className="mb-4 pt-6 pb-0"
       />
-        
+      
+      <div className="px-6">
         {aiStatus === 'offline' && (
           <div className="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-2xl backdrop-blur-sm">
             <p className="text-sm text-destructive flex items-center gap-2">

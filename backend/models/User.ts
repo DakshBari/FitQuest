@@ -8,6 +8,8 @@ export interface IUser extends Document {
   avatar?: string;
   level: number;
   xp: number;
+  isOnline: boolean;       // Added
+  lastSeen?: Date;        // Added
   stats: {
     strength: number;
     agility: number;
@@ -74,6 +76,13 @@ const UserSchema = new Schema<IUser>(
       type: Number,
       default: 0
     },
+    isOnline: {
+      type: Boolean,
+      default: false
+    },
+    lastSeen: {
+      type: Date
+    },
     stats: {
       strength: { type: Number, default: 50 },
       agility: { type: Number, default: 50 },
@@ -135,4 +144,3 @@ UserSchema.methods.comparePassword = async function (candidatePassword: string):
 };
 
 export default mongoose.model<IUser>('User', UserSchema);
-

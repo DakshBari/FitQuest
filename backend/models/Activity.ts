@@ -1,5 +1,23 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+export interface IWorldMapData {
+  sessionId?: string;
+  mode?: 'explorer' | 'navigator';
+  startLocation?: [number, number];
+  plannedRoute?: number[][];
+  path?: number[][];
+  distance?: number;
+  duration?: number;
+  averageSpeed?: number;
+  maxSpeed?: number;
+  capturedAreas?: {
+    type: string;
+    features: any[];
+  };
+  isActive?: boolean;
+  endTime?: Date;
+}
+
 export interface IActivity extends Document {
   userId: mongoose.Types.ObjectId;
   type: 'run' | 'walk' | 'cycle' | 'other';
@@ -12,9 +30,56 @@ export interface IActivity extends Document {
   maxSpeed: number; // in m/s
   calories?: number;
   capturedTerritories: mongoose.Types.ObjectId[];
+  worldMapData?: IWorldMapData;
   createdAt: Date;
   updatedAt: Date;
 }
+
+const WorldMapDataSchema = new Schema({
+  sessionId: String,
+  mode: {
+    type: String,
+    enum: ['explorer', 'navigator'],
+    default: 'explorer'
+  },
+  startLocation: [Number],
+  plannedRoute: [[Number]],
+  path: {
+    type: [[Number]],
+    default: []
+  },
+  distance: {
+    type: Number,
+    default: 0
+  },
+  duration: {
+    type: Number,
+    default: 0
+  },
+  averageSpeed: {
+    type: Number,
+    default: 0
+  },
+  maxSpeed: {
+    type: Number,
+    default: 0
+  },
+  capturedAreas: {
+    type: {
+      type: String,
+      default: 'FeatureCollection'
+    },
+    features: {
+      type: [Schema.Types.Mixed],
+      default: []
+    }
+  },
+  isActive: {
+    type: Boolean,
+    default: false
+  },
+  endTime: Date
+}, { _id: false });
 
 const ActivitySchema = new Schema<IActivity>(
   {
@@ -70,7 +135,8 @@ const ActivitySchema = new Schema<IActivity>(
     capturedTerritories: [{
       type: Schema.Types.ObjectId,
       ref: 'Territory'
-    }]
+    }],
+    worldMapData: WorldMapDataSchema
   },
   {
     timestamps: true
@@ -79,6 +145,7 @@ const ActivitySchema = new Schema<IActivity>(
 
 // Index for efficient queries
 ActivitySchema.index({ userId: 1, startTime: -1 });
+ActivitySchema.index({ 'worldMapData.sessionId': 1 });
 
 export default mongoose.model<IActivity>('Activity', ActivitySchema);
 

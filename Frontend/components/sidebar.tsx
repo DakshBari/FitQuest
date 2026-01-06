@@ -27,57 +27,13 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 h-screen bg-[hsl(var(--sidebar))] backdrop-blur-xl border-r border-[hsl(var(--sidebar-border))] transition-all duration-300 z-40",
-        collapsed ? "w-20" : "w-64",
+        "fixed left-0 top-16 h-[calc(100vh-4rem)] bg-[hsl(var(--sidebar))]/95 backdrop-blur-xl border-r border-[hsl(var(--sidebar-border))] transition-all duration-300 z-40",
+        collapsed ? "w-16" : "w-64",
       )}
     >
-      <div className="flex flex-col h-full p-4">
-        {/* Logo */}
-        <div className="flex items-center justify-between mb-8 mt-2">
-          {!collapsed && (
-            <Link href="/dashboard" className="flex items-center gap-2">
-              <div 
-                className={cn("flex h-8 w-8 items-center justify-center rounded-lg", themeClasses.logoGradient, themeClasses.logoShadow)}
-                style={themeClasses.logoGradientStyle ? { 
-                  ...themeClasses.logoGradientStyle,
-                  ...themeClasses.logoShadowStyle 
-                } : undefined}
-              >
-                <Zap className="h-5 w-5 text-white" />
-              </div>
-              <h1 
-                className={cn("text-2xl font-bold font-orbitron", themeClasses.textGradient)}
-                style={themeClasses.textGradientStyle || undefined}
-              >
-                FitQuest
-              </h1>
-            </Link>
-          )}
-          {collapsed && (
-            <Link href="/dashboard" className="flex items-center justify-center w-full">
-              <div 
-                className={cn("flex h-8 w-8 items-center justify-center rounded-lg", themeClasses.logoGradient, themeClasses.logoShadow)}
-                style={themeClasses.logoGradientStyle ? { 
-                  ...themeClasses.logoGradientStyle,
-                  ...themeClasses.logoShadowStyle 
-                } : undefined}
-              >
-                <Zap className="h-5 w-5 text-white" />
-              </div>
-            </Link>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setCollapsed(!collapsed)}
-            className="text-muted-foreground hover:text-primary hover:bg-accent"
-          >
-            {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-          </Button>
-        </div>
-
+      <div className="flex flex-col h-full p-3">
         {/* Menu Items */}
-        <nav className="flex-1 space-y-2">
+        <nav className="flex-1 space-y-2 mt-6">
           {menuItems.map((item) => {
             const Icon = item.icon
             const isActive = pathname === item.href
@@ -85,14 +41,30 @@ export function Sidebar() {
               <Link key={item.name} href={item.href}>
                 <div
                   className={cn(
-                    "flex items-center gap-3 px-3 py-3 rounded-xl transition-all",
+                    "flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 group relative",
                     isActive
-                      ? themeClasses.activeItem
-                      : `text-muted-foreground hover:text-primary hover:bg-accent`,
+                      ? themeClasses.activeItem + " shadow-lg"
+                      : `text-muted-foreground hover:text-primary hover:bg-accent/50`,
                   )}
                 >
                   <Icon className="h-5 w-5 flex-shrink-0" />
-                  {!collapsed && <span className="font-medium">{item.name}</span>}
+                  {!collapsed && (
+                    <>
+                      <span className="font-medium">{item.name}</span>
+                      {isActive && (
+                        <div 
+                          className={cn("absolute right-2 w-2 h-2 rounded-full", themeClasses.buttonGradient)}
+                          style={themeClasses.buttonGradientStyle || undefined}
+                        />
+                      )}
+                    </>
+                  )}
+                  {collapsed && isActive && (
+                    <div 
+                      className={cn("absolute right-1 w-2 h-2 rounded-full", themeClasses.buttonGradient)}
+                      style={themeClasses.buttonGradientStyle || undefined}
+                    />
+                  )}
                 </div>
               </Link>
             )
@@ -100,19 +72,29 @@ export function Sidebar() {
         </nav>
 
         {/* AI Coach - Special Bottom Item */}
-        <Link href={aiCoachItem.href}>
-          <div
-            className={cn(
-              "flex items-center gap-3 px-3 py-3 rounded-xl transition-all border-2 mt-4",
-              pathname === aiCoachItem.href
-                ? "bg-purple-500/20 text-purple-400 border-purple-500/50 shadow-lg shadow-purple-500/20"
-                : "text-purple-400 border-purple-500/30 hover:bg-purple-500/10 hover:border-purple-500/50",
-            )}
-          >
-            <Brain className="h-5 w-5 flex-shrink-0" />
-            {!collapsed && <span className="font-medium">{aiCoachItem.name}</span>}
-          </div>
-        </Link>
+        <div className="mt-4 pt-4 border-t border-border/50">
+          <Link href={aiCoachItem.href}>
+            <div
+              className={cn(
+                "flex items-center gap-3 px-3 py-3 rounded-xl transition-all border-2 relative group",
+                pathname === aiCoachItem.href
+                  ? "bg-purple-500/20 text-purple-400 border-purple-500/50 shadow-lg shadow-purple-500/20"
+                  : "text-purple-400 border-purple-500/30 hover:bg-purple-500/10 hover:border-purple-500/50",
+              )}
+            >
+              <Brain className="h-5 w-5 flex-shrink-0" />
+              {!collapsed && (
+                <>
+                  <span className="font-medium">{aiCoachItem.name}</span>
+                  <div className="absolute right-2 w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
+                </>
+              )}
+              {collapsed && (
+                <div className="absolute right-1 w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
+              )}
+            </div>
+          </Link>
+        </div>
       </div>
     </aside>
   )

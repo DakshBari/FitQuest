@@ -1,50 +1,69 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ITerritory extends Document {
-  name: string;
-  location: {
+  userId?: mongoose.Types.ObjectId;
+  name?: string;
+  location?: {
     type: 'Point';
     coordinates: [number, number]; // [longitude, latitude]
   };
-  radius: number; // in meters
-  challenge: string;
-  reward: number; // XP reward
+  geometry?: {
+    type: 'Polygon';
+    coordinates: number[][][];
+  };
+  radius?: number; // in meters
+  area?: number; // in square meters
+  challenge?: string;
+  reward?: number; // XP reward
   capturedBy?: mongoose.Types.ObjectId;
   capturedAt?: Date;
+  captured?: boolean;
+  sessionId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const TerritorySchema = new Schema<ITerritory>(
   {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    },
     name: {
       type: String,
-      required: true,
       trim: true
     },
     location: {
       type: {
         type: String,
-        enum: ['Point'],
-        required: true
+        enum: ['Point']
       },
       coordinates: {
-        type: [Number],
-        required: true
+        type: [Number]
+      }
+    },
+    geometry: {
+      type: {
+        type: String,
+        enum: ['Polygon']
+      },
+      coordinates: {
+        type: [[[Number]]]
       }
     },
     radius: {
       type: Number,
-      required: true,
+      min: 0
+    },
+    area: {
+      type: Number,
       min: 0
     },
     challenge: {
-      type: String,
-      required: true
+      type: String
     },
     reward: {
       type: Number,
-      required: true,
       min: 0
     },
     capturedBy: {
@@ -53,6 +72,13 @@ const TerritorySchema = new Schema<ITerritory>(
     },
     capturedAt: {
       type: Date
+    },
+    captured: {
+      type: Boolean,
+      default: false
+    },
+    sessionId: {
+      type: String
     }
   },
   {
@@ -60,8 +86,10 @@ const TerritorySchema = new Schema<ITerritory>(
   }
 );
 
-// Geospatial index for efficient location queries
+// Geospatial indexes for efficient location queries
 TerritorySchema.index({ location: '2dsphere' });
+TerritorySchema.index({ geometry: '2dsphere' });
+TerritorySchema.index({ userId: 1, captured: 1 });
 
 export default mongoose.model<ITerritory>('Territory', TerritorySchema);
 

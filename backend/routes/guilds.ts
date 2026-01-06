@@ -111,8 +111,8 @@ router.get('/friends', async (req: AuthRequest, res, next) => {
         { recipient: req.user._id, status: 'accepted' }
       ]
     })
-      .populate('requester', 'username avatar level xp')
-      .populate('recipient', 'username avatar level xp');
+    .populate('requester', 'username avatar level xp isOnline')
+    .populate('recipient', 'username avatar level xp isOnline');
 
     const friends = friendships.map(friendship => {
       const friend = friendship.requester._id.toString() === req.user._id.toString()
@@ -123,7 +123,8 @@ router.get('/friends', async (req: AuthRequest, res, next) => {
         name: friend.username,
         avatar: friend.avatar || friend.username.substring(0, 2).toUpperCase(),
         level: friend.level,
-        xp: friend.xp
+        xp: friend.xp,
+        online: friend.isOnline
       };
     });
 
@@ -247,8 +248,7 @@ router.post(
 
       if (newHealth === 0) {
         raidBoss.isActive = false;
-        // Award rewards to all participants
-        // This would typically be handled by a more complex system
+        // Award rewards logic here
       }
 
       await raidBoss.save();
@@ -275,4 +275,3 @@ router.post(
 );
 
 export { router as guildRoutes };
-

@@ -1,5 +1,5 @@
 import express from 'express';
-import { body, validationResult } from 'express-validator';
+import { body, validationResult, query } from 'express-validator';
 import User from '../models/User';
 import { AppError } from '../middleware/errorHandler';
 import { protect, AuthRequest } from '../middleware/auth';
@@ -94,5 +94,89 @@ router.put(
   }
 );
 
-export { router as userRoutes };
+// @route   GET /api/users/search
+// @desc    Search for users by username
+// @access  Private
+router.get(
+  '/search',
+  protect, // Ensure this is present
+  [
+    query('q').notEmpty().withMessage('Search query is required')
+  ],
+  async (req: AuthRequest, res, next) => {
+    try {
+      console.log("--- SEARCH ROUTE HIT ---");
+      
+      // Debugging User
+      console.log("User ID:", req.user?._id);
 
+      const { q } = req.query;
+      
+      // Ensure query is a string (TypeScript safety)
+      const searchQuery = typeof q === 'string' ? q : (Array.isArray(q) ? q[0] : '');
+
+      if (!searchQuery) {
+        return res.status(400).json({ message: 'Query is missing' });
+      }
+
+      console.log("Searching for:", searchQuery);
+
+      // Search logic
+      const users = await User.find({
+        _id: { $ne: req.user._id }, 
+        username: { $regex: searchQuery, $options: 'i' } 
+      })
+      .select('username avatar level isOnline') 
+      .limit(10);
+
+      console.log("Found users:", users.length);
+
+      res.json({
+        status: 'success',
+        users
+      });
+    } catch (error: any) {
+      // DEBUGGING: Log error to backend console AND send it to frontend
+      console.error("!!! SEARCH ERROR !!!", error);
+      console.error("Error Name:", error.name);
+      console.error("Error Message:", error.message);
+      console.error("Error Stack:", error.stack);
+      
+      // Return the error message to the frontend so you can see it in Browser Console
+      res.status(500).json({ 
+        message: "Search Failed", 
+        error: error.message, 
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+      });
+    }
+  }
+);
+
+// @route   PUT /api/users/status
+// @desc    Update online status (true/false)
+// @access  Private
+router.put('/status', protect, async (req: AuthRequest, res, next) => {
+  try {
+    const { isOnline } = req.body;
+
+    const updateData: any = { isOnline };
+    if (isOnline === false) {
+      updateData.lastSeen = new Date();
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      updateData,
+      { new: true }
+    );
+
+    res.json({
+      status: 'success',
+      user
+    });
+  } catch (error: any) {
+    next(error);
+  }
+});
+
+export { router as userRoutes };

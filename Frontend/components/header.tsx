@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
-import { Moon, Sun, Zap, Coins, Settings, LogOut } from "lucide-react"
+import { Moon, Sun, Bell, Search, Menu, X, Settings, LogOut, User } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -21,11 +22,12 @@ import { cn } from "@/lib/utils"
 
 export function Header() {
   const { theme, setTheme } = useTheme()
-  const { collapsed } = useSidebar()
+  const { collapsed, setCollapsed } = useSidebar()
   const router = useRouter()
   const { user, logout } = useAuth()
   const pathname = usePathname()
   const themeClasses = getThemeClasses(pathname)
+  const [notifications, setNotifications] = useState(3) // Mock notification count
 
   // Robust Initials Function
   const getInitials = (name?: string) => {
@@ -38,99 +40,103 @@ export function Header() {
       .join("")
   }
 
-  // Calculate XP percentage (Simple logic: Level * 1000 = XP needed for next level)
-  const currentLevel = user?.level || 1
-  const currentXp = user?.xp || 0
-  const xpForNextLevel = currentLevel * 1000
-  const xpPercentage = Math.min((currentXp / xpForNextLevel) * 100, 100)
-
   const handleLogout = () => {
-    logout() // Use the proper logout function from AuthContext
+    logout()
   }
 
-  // If no user data loaded yet, use defaults
-  const stamina = user?.stats?.endurance || 80
-
   return (
-    <header
-      className={cn(
-        "fixed top-0 right-0 h-20 bg-background backdrop-blur-xl border-b border-border z-30 px-6 transition-all duration-300",
-        collapsed ? "left-20" : "left-0 md:left-64",
-      )}
-    >
+    <header className="fixed top-0 left-0 right-0 h-16 bg-background/95 backdrop-blur-xl border-b border-border z-50 px-4 transition-all duration-300">
       <div className="flex items-center justify-between h-full">
-        {/* XP Bar - Center */}
-        <div className="flex-1 max-w-2xl mx-8">
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-sm">
-              <span 
-                className={cn("font-semibold font-orbitron", themeClasses.theme.primary)}
-                style={themeClasses.textGradientStyle ? {
-                  ...themeClasses.textGradientStyle
-                } : undefined}
-              >
-                Level {currentLevel}
-              </span>
-              <span className="text-muted-foreground">
-                {currentXp} / {xpForNextLevel} XP
-              </span>
-            </div>
-            <div className="relative h-3 bg-muted rounded-full overflow-hidden border border-primary/30">
-              <div
-                className={cn("absolute inset-y-0 left-0 rounded-full shadow-lg transition-all duration-1000", themeClasses.buttonGradient)}
-                style={themeClasses.buttonGradientStyle ? { 
-                  ...themeClasses.buttonGradientStyle,
-                  width: `${xpPercentage}%`,
-                  boxShadow: `0 4px 14px 0 ${themeClasses.theme.primary?.replace('text-', '') || 'hsl(var(--primary))'}/50`
-                } : { width: `${xpPercentage}%` }}
-              />
-            </div>
+        {/* Left Side - Sidebar Toggle */}
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setCollapsed(!collapsed)}
+            className={cn("text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-300", themeClasses.hoverItem)}
+          >
+            {collapsed ? <Menu className="h-5 w-5" /> : <X className="h-5 w-5" />}
+          </Button>
+          
+          {/* Search Bar */}
+          <div className="relative hidden md:block">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search workouts, meals..."
+              className="pl-10 w-80 bg-muted/50 border-border/50 focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
+            />
           </div>
         </div>
 
-        {/* Right Side - Stats & Profile */}
-        <div className="flex items-center gap-4">
-          {/* Stamina (Mapped from endurance stat) */}
-          <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg border border-border">
-            <Zap className="h-4 w-4 text-yellow-500" />
-            <span className="text-foreground font-semibold">
-              {stamina}/100
-            </span>
-          </div>
+        {/* Center - Page Title (optional, can be added dynamically) */}
+        <div className="hidden lg:block">
+          <h1 
+            className={cn("text-xl font-semibold", themeClasses.theme.primary)}
+            style={themeClasses.textGradientStyle || undefined}
+          >
+            {pathname === '/kitchen' && 'The Kitchen'}
+            {pathname === '/arena' && 'The Arena'}
+            {pathname === '/sanctuary' && 'The Sanctuary'}
+            {pathname === '/ai-coach' && 'The Oracle'}
+            {pathname === '/dashboard' && 'Dashboard'}
+            {pathname === '/world-map' && 'World Map'}
+            {pathname === '/guilds' && 'Guilds'}
+            {pathname === '/settings' && 'Settings'}
+          </h1>
+        </div>
 
-          {/* Coins (Mapped to territories) */}
-          <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg border border-border">
-            <Coins className="h-4 w-4 text-amber-500" />
-            <span className="text-foreground font-semibold">
-              {user?.stats?.territories || 0}
-            </span>
-          </div>
+        {/* Right Side - Actions & Profile */}
+        <div className="flex items-center gap-3">
+          {/* Search Button (Mobile) */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden text-muted-foreground hover:text-foreground hover:bg-accent"
+          >
+            <Search className="h-5 w-5" />
+          </Button>
+
+          {/* Notifications */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("relative text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-300", themeClasses.hoverItem)}
+          >
+            <Bell className="h-5 w-5" />
+            {notifications > 0 && (
+              <span 
+                className={cn("absolute -top-1 -right-1 h-5 w-5 rounded-full text-xs font-bold text-white flex items-center justify-center shadow-lg", themeClasses.buttonGradient)}
+                style={themeClasses.buttonGradientStyle || undefined}
+              >
+                {notifications > 9 ? '9+' : notifications}
+              </span>
+            )}
+          </Button>
 
           {/* Theme Toggle */}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="text-muted-foreground hover:text-primary hover:bg-accent"
+            className="text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-300"
           >
             <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           </Button>
 
-          {/* User Avatar with Dropdown */}
+          {/* User Profile Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="relative focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full">
-                <Avatar className={cn("h-10 w-10 border-2 cursor-pointer hover:border-primary transition-colors", `border-${themeClasses.theme.primary?.replace('text-', '') || 'primary'}/50`)}>
+                <Avatar className={cn("h-9 w-9 border-2 cursor-pointer hover:border-primary transition-all duration-300", `border-${themeClasses.theme.primary?.replace('text-', '') || 'primary'}/50`)}>
                   {user?.avatar ? (
                     <AvatarImage
                       src={user.avatar}
                       alt={user?.username || "User"}
                     />
                   ) : null}
-
                   <AvatarFallback 
-                    className={cn("bg-muted font-semibold", themeClasses.theme.primary)}
+                    className={cn("bg-muted font-semibold text-sm", themeClasses.theme.primary)}
                     style={themeClasses.textGradientStyle ? {
                       ...themeClasses.textGradientStyle
                     } : undefined}
@@ -138,28 +144,37 @@ export function Header() {
                     {getInitials(user?.username)}
                   </AvatarFallback>
                 </Avatar>
-                <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-card" />
+                <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background shadow-sm" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <div className="px-2 py-1.5 text-sm font-semibold text-foreground">
-                {user?.username || 'User'}
-              </div>
-              <div className="px-2 py-1 text-xs text-muted-foreground">
-                {user?.email || 'user@fitquest.com'}
+            <DropdownMenuContent align="end" className="w-56 bg-card/95 backdrop-blur-xl border border-border/50 shadow-2xl">
+              <div className="px-3 py-2">
+                <div className="text-sm font-semibold text-foreground">
+                  {user?.username || 'User'}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {user?.email || 'user@fitquest.com'}
+                </div>
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => router.push("/profile")}
                 className="cursor-pointer"
               >
-                <Settings className="mr-2 h-4 w-4" />
+                <User className="mr-2 h-4 w-4" />
                 Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => router.push("/settings")}
+                className="cursor-pointer"
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleLogout}
-                className="cursor-pointer text-red-600 focus:text-red-600"
+                className="cursor-pointer text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
               >
                 <LogOut className="mr-2 h-4 w-4" />
                 Logout
