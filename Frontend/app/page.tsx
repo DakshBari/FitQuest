@@ -2,15 +2,24 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Moon, Sun, Zap, Target, Users, Brain, Trophy, ChevronRight } from "lucide-react"
+import { Moon, Sun, Zap, Target, Users, Brain, Trophy, ChevronRight, LogOut } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function LandingPage() {
   const [isDark, setIsDark] = useState(true)
+  const router = useRouter()
+  const { user, isAuthenticated, logout } = useAuth()
 
   const toggleTheme = () => {
     setIsDark(!isDark)
     document.documentElement.classList.toggle("dark")
+  }
+
+  const handleLogout = () => {
+    logout()
+    router.push("/")
   }
 
   return (
@@ -59,16 +68,39 @@ export default function LandingPage() {
               >
                 {isDark ? <Sun className="h-5 w-5 text-yellow-400" /> : <Moon className="h-5 w-5 text-cyan-400" />}
               </button>
-              <Link href="/login">
-                <Button variant="ghost" className="text-muted-foreground hover:text-cyan-400 hover:bg-cyan-500/10 transition-all duration-300">
-                  Login
-                </Button>
-              </Link>
-              <Link href="/signup">
-                <Button className="bg-gradient-to-r from-cyan-500 to-purple-500 text-white hover:from-cyan-600 hover:to-purple-600 shadow-xl shadow-cyan-500/30 ring-1 ring-cyan-400/20 px-6 py-3 font-semibold">
-                  Start Quest
-                </Button>
-              </Link>
+              
+              {/* UPDATED: Logic based on Auth State */}
+              {isAuthenticated ? (
+                <>
+                  <Button 
+                    onClick={() => router.push('/dashboard')}
+                    className="text-muted-foreground hover:text-cyan-400 hover:bg-cyan-500/10 transition-all duration-300"
+                  >
+                    Continue Quest
+                  </Button>
+                  <Button 
+                    onClick={handleLogout}
+                    variant="outline"
+                    className="border-red-500/50 text-red-500 hover:bg-red-500/10"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Logout
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Link href="/login">
+                    <Button variant="ghost" className="text-muted-foreground hover:text-cyan-400 hover:bg-cyan-500/10 transition-all duration-300">
+                      Login
+                    </Button>
+                  </Link>
+                  <Link href="/signup">
+                    <Button className="bg-gradient-to-r from-cyan-500 to-purple-500 text-white hover:from-cyan-600 hover:to-purple-600 shadow-xl shadow-cyan-500/30 ring-1 ring-cyan-400/20 px-6 py-3 font-semibold">
+                      Start Quest
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </nav>
@@ -85,34 +117,51 @@ export default function LandingPage() {
               </div>
 
               <h1 className="text-6xl font-bold tracking-tight sm:text-7xl lg:text-8xl text-balance">
-                <span className="block mb-3 text-foreground">Level Up Your</span>
+                <span className="block mb-3 text-foreground">
+                  {isAuthenticated ? `Welcome Back, ${user?.username || 'Warrior'}` : 'Level Up Your'}
+                </span>
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 via-purple-500 to-cyan-400 animate-pulse-glow drop-shadow-2xl">
-                  Fitness Journey
+                  {isAuthenticated ? 'Fitness Journey' : 'Fitness Journey'}
                 </span>
               </h1>
 
               <p className="mx-auto mt-8 max-w-2xl text-xl text-muted-foreground text-pretty leading-relaxed">
-                Transform your workouts into an epic adventure. Track form with AI, complete quests, capture
-                territories, and unlock achievements in the most immersive fitness ecosystem ever created.
+                {isAuthenticated 
+                  ? "Your adventure awaits. Continue your workouts, capture territories, and defeat new raid bosses."
+                  : "Transform your workouts into an epic adventure. Track form with AI, complete quests, capture territories, and unlock achievements in the most immersive fitness ecosystem ever created."
+                }
               </p>
 
               <div className="mt-12 flex flex-col items-center justify-center gap-6 sm:flex-row">
-                <Link href="/signup">
+                {isAuthenticated ? (
                   <Button
+                    onClick={() => router.push('/dashboard')}
                     size="lg"
                     className="group bg-gradient-to-r from-cyan-500 to-purple-500 text-white hover:from-cyan-600 hover:to-purple-600 shadow-2xl shadow-cyan-500/40 hover:shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 ring-1 ring-cyan-400/20 px-8 py-4 text-lg font-semibold"
                   >
-                    Begin Your Quest
+                    Go to Dashboard
                     <ChevronRight className="ml-2 h-6 w-6 transition-transform group-hover:translate-x-1" />
                   </Button>
-                </Link>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="border-cyan-500/50 hover:bg-cyan-500/10 hover:border-cyan-500 text-cyan-500 hover:text-cyan-600 bg-card backdrop-blur-sm px-8 py-4 text-lg font-semibold transition-all duration-300"
-                >
-                  Watch Demo
-                </Button>
+                ) : (
+                  <>
+                    <Link href="/signup">
+                      <Button
+                        size="lg"
+                        className="group bg-gradient-to-r from-cyan-500 to-purple-500 text-white hover:from-cyan-600 hover:to-purple-600 shadow-2xl shadow-cyan-500/40 hover:shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 ring-1 ring-cyan-400/20 px-8 py-4 text-lg font-semibold"
+                      >
+                        Begin Your Quest
+                        <ChevronRight className="ml-2 h-6 w-6 transition-transform group-hover:translate-x-1" />
+                      </Button>
+                    </Link>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="border-cyan-500/50 hover:bg-cyan-500/10 hover:border-cyan-500 text-cyan-500 hover:text-cyan-600 bg-card backdrop-blur-sm px-8 py-4 text-lg font-semibold transition-all duration-300"
+                    >
+                      Watch Demo
+                    </Button>
+                  </>
+                )}
               </div>
 
               {/* Stats */}
@@ -323,6 +372,7 @@ export default function LandingPage() {
 
                 <Button
                   size="lg"
+                  onClick={() => isAuthenticated ? router.push('/ai-coach') : router.push('/signup')}
                   className="bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 shadow-2xl shadow-purple-500/40 ring-1 ring-purple-400/20 px-8 py-4 text-lg font-semibold"
                 >
                   Consult the Oracle
@@ -344,14 +394,17 @@ export default function LandingPage() {
               </span>
             </h2>
             <p className="text-xl text-muted-foreground mb-12 text-pretty leading-relaxed">
-              Join thousands of players transforming their fitness into an adventure.
+              {isAuthenticated 
+                ? "Continue your journey and dominate the leaderboards today."
+                : "Join thousands of players transforming their fitness into an adventure."
+              }
             </p>
-            <Link href="/signup">
+            <Link href={isAuthenticated ? '/dashboard' : '/signup'}>
               <Button
                 size="lg"
                 className="bg-gradient-to-r from-cyan-500 to-purple-500 text-white hover:from-cyan-600 hover:to-purple-600 shadow-2xl shadow-cyan-500/40 text-xl px-10 py-6 font-bold ring-1 ring-cyan-400/20"
               >
-                Begin Your Journey Now
+                {isAuthenticated ? 'Continue Your Journey' : 'Begin Your Journey Now'}
                 <ChevronRight className="ml-3 h-7 w-7" />
               </Button>
             </Link>

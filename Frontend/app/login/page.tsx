@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -9,30 +9,50 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PublicRoute } from "@/components/auth/PublicRoute"
 import { useAuth } from "@/contexts/AuthContext"
-import { login } from "@/services/authService"
+import { login as authServiceLogin } from "@/services/authService"
 import { toast } from "@/components/ui/sonner"
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login: authLogin } = useAuth()
+  const { login: authLogin, isAuthenticated } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
+  // NEW: Auto-redirect if user is already on login page but logged in
+  useEffect(() => {
+    if (isAuthenticated) {
+      console.log("User is already authenticated. Redirecting to dashboard...")
+      // Force hard redirect to ensure state is clean
+      window.location.href = '/dashboard'
+    }
+  }, [isAuthenticated])
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    console.log("1. Login Form Submitted")
 
     try {
-      const data = await login(email, password)
+      console.log("2. Calling authService...")
+      const data = await authServiceLogin(email, password)
+      
+      console.log("3. Auth Service Success. Data:", data)
+      
+      // Save token via Context
       authLogin(data.token, data.user)
+      console.log("4. Context Login Called. Token saved.")
+      
       toast.success("Welcome back to FitQuest!")
       
-      // Check for redirect parameter
-      const urlParams = new URLSearchParams(window.location.search)
-      const redirectTo = urlParams.get('redirect') || '/dashboard'
-      router.push(redirectTo)
+      // 5. Force Redirect
+      // Using window.location to bypass any middleware/router conflicts
+      setTimeout(() => {
+        window.location.href = '/dashboard'
+      }, 500)
+      
     } catch (err: any) {
+      console.error("!!! LOGIN FAILED !!!", err)
       toast.error(err.message || 'Failed to login')
     } finally {
       setIsLoading(false)
@@ -76,7 +96,7 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="•••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="bg-muted border-border focus:border-primary text-foreground placeholder:text-muted-foreground"

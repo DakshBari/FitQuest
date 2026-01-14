@@ -3,91 +3,60 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { validateToken } from '@/services/authService'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, token, logout } = useAuth()
-  const [isValidating, setIsValidating] = useState(false)
+  const { isAuthenticated, isLoading } = useAuth()
+  const [isRedirecting, setIsRedirecting] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
-    // Temporarily disable token validation to prevent logout issues
-    // This will be re-enabled once we confirm the basic auth flow works
-    console.log('ProtectedRoute: Token validation temporarily disabled for debugging')
+    console.log('ProtectedRoute: Auth state check...', { isAuthenticated, isLoading })
     
-    /*
-    const checkTokenValidity = async () => {
-      if (!isLoading && token && isAuthenticated) {
-        setIsValidating(true)
-        try {
-          const isValid = await validateToken(token)
-          if (!isValid) {
-            console.warn('Token is invalid, logging out')
-            logout()
-            return
-          }
-        } catch (error) {
-          console.error('Token validation failed, but keeping user logged in:', error)
-          // Don't logout on validation error - could be network issue or backend down
-          // Better to keep user logged in than force logout on every API failure
-        } finally {
-          setIsValidating(false)
-        }
-      }
-    }
-
-    // Only validate token on mount, not on every token change to prevent loops
-    if (!isLoading && token && isAuthenticated && !isValidating) {
-      checkTokenValidity()
-    }
-    */
-  }, [isLoading, isAuthenticated]) // Removed token and logout from dependencies to prevent loops
-
-  useEffect(() => {
-    console.log('ProtectedRoute: Auth state check...')
-    console.log('isLoading:', isLoading)
-    console.log('isAuthenticated:', isAuthenticated)
-    console.log('token exists:', !!token)
-    
-    if (!isLoading && !isAuthenticated) {
-      console.log('ProtectedRoute: User not authenticated, redirecting to login')
-      const currentPath = window.location.pathname
+    // If we are done loading auth, and user is NOT authenticated, redirect them.
+    if (!isLoading && !isAuthenticated && !isRedirecting) {
+      setIsRedirecting(true)
+      
+      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/dashboard'
+      // Keep the redirect param so they return to the page they tried to visit
       const loginUrl = `/login${currentPath !== '/' ? `?redirect=${encodeURIComponent(currentPath)}` : ''}`
-      router.push(loginUrl)
-    } else if (!isLoading && isAuthenticated) {
-      console.log('ProtectedRoute: User authenticated, allowing access')
+      
+      console.log("ProtectedRoute: User not authenticated. Redirecting to", loginUrl)
+      
+      // Use replace to ensure navigation is clean
+      router.replace(loginUrl)
     }
-  }, [isAuthenticated, isLoading, router])
+  }, [isAuthenticated, isLoading, router, isRedirecting])
 
-  // Show loading spinner while checking auth or validating token
-  if (isLoading || isValidating) {
+  // 1. Initial Loading
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-muted-foreground">
-            {isLoading ? 'Loading...' : 'Validating session...'}
-          </p>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     )
   }
 
-  // Don't render children if not authenticated
-  if (!isAuthenticated) {
+  // 2. Redirecting State (Prevents "Blank Screen")
+  if (isRedirecting) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-muted-foreground">Redirecting to login...</p>
-        </div>
+        <p className="text-muted-foreground">Redirecting to login...</p>
       </div>
     )
   }
 
+  // 3. Not Authenticated (Shouldn't render children)
+  if (!isAuthenticated) {
+    return null
+  }
+
+  // 4. Show Content (Dashboard, etc)
   return <>{children}</>
 }

@@ -24,12 +24,11 @@ export function Header() {
   const { theme, setTheme } = useTheme()
   const { collapsed, setCollapsed } = useSidebar()
   const router = useRouter()
-  const { user, logout } = useAuth()
+  const { user, logout, isAuthenticated } = useAuth() // Added isAuthenticated
   const pathname = usePathname()
   const themeClasses = getThemeClasses(pathname)
-  const [notifications, setNotifications] = useState(3) // Mock notification count
+  const [notifications, setNotifications] = useState(3)
 
-  // Robust Initials Function
   const getInitials = (name?: string) => {
     if (!name) return "U"
     return name
@@ -40,14 +39,15 @@ export function Header() {
       .join("")
   }
 
-  const handleLogout = () => {
+  const handleLogout = (e: React.MouseEvent) => {
+    e.preventDefault()
     logout()
   }
 
   return (
     <header className="fixed top-0 left-0 right-0 h-16 bg-background/95 backdrop-blur-xl border-b border-border z-50 px-4 transition-all duration-300">
       <div className="flex items-center justify-between h-full">
-        {/* Left Side - Sidebar Toggle */}
+        {/* Left Side */}
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -58,7 +58,6 @@ export function Header() {
             {collapsed ? <Menu className="h-5 w-5" /> : <X className="h-5 w-5" />}
           </Button>
           
-          {/* Search Bar */}
           <div className="relative hidden md:block">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -68,7 +67,7 @@ export function Header() {
           </div>
         </div>
 
-        {/* Center - Page Title (optional, can be added dynamically) */}
+        {/* Center - Page Title */}
         <div className="hidden lg:block">
           <h1 
             className={cn("text-xl font-semibold", themeClasses.theme.primary)}
@@ -85,9 +84,8 @@ export function Header() {
           </h1>
         </div>
 
-        {/* Right Side - Actions & Profile */}
+        {/* Right Side */}
         <div className="flex items-center gap-3">
-          {/* Search Button (Mobile) */}
           <Button
             variant="ghost"
             size="icon"
@@ -96,22 +94,24 @@ export function Header() {
             <Search className="h-5 w-5" />
           </Button>
 
-          {/* Notifications */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn("relative text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-300", themeClasses.hoverItem)}
-          >
-            <Bell className="h-5 w-5" />
-            {notifications > 0 && (
-              <span 
-                className={cn("absolute -top-1 -right-1 h-5 w-5 rounded-full text-xs font-bold text-white flex items-center justify-center shadow-lg", themeClasses.buttonGradient)}
-                style={themeClasses.buttonGradientStyle || undefined}
-              >
-                {notifications > 9 ? '9+' : notifications}
-              </span>
-            )}
-          </Button>
+          {/* Notifications (Hide if not logged in) */}
+          {isAuthenticated && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("relative text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-300", themeClasses.hoverItem)}
+            >
+              <Bell className="h-5 w-5" />
+              {notifications > 0 && (
+                <span 
+                  className={cn("absolute -top-1 -right-1 h-5 w-5 rounded-full text-xs font-bold text-white flex items-center justify-center shadow-lg", themeClasses.buttonGradient)}
+                  style={themeClasses.buttonGradientStyle || undefined}
+                >
+                  {notifications > 9 ? '9+' : notifications}
+                </span>
+              )}
+            </Button>
+          )}
 
           {/* Theme Toggle */}
           <Button
@@ -124,63 +124,71 @@ export function Header() {
             <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           </Button>
 
-          {/* User Profile Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="relative focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full">
-                <Avatar className={cn("h-9 w-9 border-2 cursor-pointer hover:border-primary transition-all duration-300", `border-${themeClasses.theme.primary?.replace('text-', '') || 'primary'}/50`)}>
-                  {user?.avatar ? (
-                    <AvatarImage
-                      src={user.avatar}
-                      alt={user?.username || "User"}
-                    />
-                  ) : null}
-                  <AvatarFallback 
-                    className={cn("bg-muted font-semibold text-sm", themeClasses.theme.primary)}
-                    style={themeClasses.textGradientStyle ? {
-                      ...themeClasses.textGradientStyle
-                    } : undefined}
-                  >
-                    {getInitials(user?.username)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background shadow-sm" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 bg-card/95 backdrop-blur-xl border border-border/50 shadow-2xl">
-              <div className="px-3 py-2">
-                <div className="text-sm font-semibold text-foreground">
-                  {user?.username || 'User'}
+          {/* PROFILE SECTION - LOGIC CHANGE */}
+          {isAuthenticated ? (
+            // Logged In -> Show Dropdown
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="relative focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full">
+                  <Avatar className={cn("h-9 w-9 border-2 cursor-pointer hover:border-primary transition-all duration-300", `border-${themeClasses.theme.primary?.replace('text-', '') || 'primary'}/50`)}>
+                    {user?.avatar ? (
+                      <AvatarImage
+                        src={user.avatar}
+                        alt={user?.username || "User"}
+                      />
+                    ) : null}
+                    <AvatarFallback 
+                      className={cn("bg-muted font-semibold text-sm", themeClasses.theme.primary)}
+                    >
+                      {getInitials(user?.username)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background shadow-sm" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-card/95 backdrop-blur-xl border border-border/50 shadow-2xl">
+                <div className="px-3 py-2">
+                  <div className="text-sm font-semibold text-foreground">
+                    {user?.username || 'User'}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {user?.email || 'user@fitquest.com'}
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {user?.email || 'user@fitquest.com'}
-                </div>
-              </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => router.push("/profile")}
-                className="cursor-pointer"
-              >
-                <User className="mr-2 h-4 w-4" />
-                Profile
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => router.push("/settings")}
-                className="cursor-pointer"
-              >
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={handleLogout}
-                className="cursor-pointer text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => router.push("/profile")}
+                  className="cursor-pointer"
+                >
+                  <User className="mr-2 h-4 w-4" />
+                  Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => router.push("/settings")}
+                  className="cursor-pointer"
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="cursor-pointer text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            // Logged Out -> Show Login Button
+            <Button 
+              onClick={() => router.push('/login')}
+              className="bg-[#00BBA7] hover:bg-[#009688] text-white font-medium"
+            >
+              Login
+            </Button>
+          )}
         </div>
       </div>
     </header>

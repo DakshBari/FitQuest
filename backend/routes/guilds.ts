@@ -166,7 +166,13 @@ router.post(
       });
 
       if (existingFriendship) {
-        return next(new AppError('Friendship already exists', 400));
+        if (existingFriendship.status === 'pending') {
+          return next(new AppError('Friend request already pending', 400));
+        } else if (existingFriendship.status === 'accepted') {
+          return next(new AppError('Already friends', 400));
+        } else {
+          return next(new AppError('Friendship already exists', 400));
+        }
       }
 
       const friendship = await Friendship.create({
@@ -184,6 +190,111 @@ router.post(
     }
   }
 );
+
+// @route   GET /api/guilds/friends/requests
+// @desc    Get pending friend requests
+// @access  Private
+router.get('/friends/requests', async (req: AuthRequest, res, next) => {
+  try {
+    const requests = await Friendship.find({
+      recipient: req.user._id,
+      status: 'pending'
+    })
+    .populate('requester', 'username avatar level xp isOnline')
+    .sort({ createdAt: -1 });
+
+    const formattedRequests = requests.map(request => ({
+      id: request._id,
+      user: {
+        id: request.requester._id,
+        name: request.requester.username,
+        avatar: request.requester.avatar || request.requester.username.substring(0, 2).toUpperCase(),
+        level: request.requester.level,
+        online: request.requester.isOnline
+      },
+      createdAt: request.createdAt
+    }));
+
+    res.json({
+      status: 'success',
+      requests: formattedRequests
+    });
+  } catch (error: any) {
+    next(error);
+  }
+});
+
+// @route   PUT /api/guilds/friends/requests/:requestId
+// @desc    Accept or reject friend request
+// @access  Private
+router.put(
+  '/friends/requests/:requestId',
+  [
+    body('action').isIn(['accept', 'reject']).withMessage('Action must be accept or reject')
+  ],
+  async (req: AuthRequest, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { requestId } = req.params;
+      const { action } = req.body;
+
+      const friendship = await Friendship.findOne({
+        _id: requestId,
+        recipient: req.user._id,
+        status: 'pending'
+      });
+
+      if (!friendship) {
+        return next(new AppError('Friend request not found', 404));
+      }
+
+      if (action === 'accept') {
+        friendship.status = 'accepted';
+        await friendship.save();
+      } else {
+        await friendship.deleteOne();
+      }
+
+      res.json({
+        status: 'success',
+        message: action === 'accept' ? 'Friend request accepted' : 'Friend request rejected'
+      });
+    } catch (error: any) {
+      next(error);
+    }
+  }
+);
+
+// @route   DELETE /api/guilds/friends/:friendId
+// @desc    Remove a friend
+// @access  Private
+router.delete('/friends/:friendId', async (req: AuthRequest, res, next) => {
+  try {
+    const { friendId } = req.params;
+
+    const friendship = await Friendship.findOneAndDelete({
+      $or: [
+        { requester: req.user._id, recipient: friendId, status: 'accepted' },
+        { requester: friendId, recipient: req.user._id, status: 'accepted' }
+      ]
+    });
+
+    if (!friendship) {
+      return next(new AppError('Friendship not found', 404));
+    }
+
+    res.json({
+      status: 'success',
+      message: 'Friend removed successfully'
+    });
+  } catch (error: any) {
+    next(error);
+  }
+});
 
 // @route   GET /api/guilds/raid-boss
 // @desc    Get current raid boss

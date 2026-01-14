@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { updateStatus } from '@/services/authService' // Import this
 
 interface User {
   id: string
@@ -24,29 +25,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Helper functions for cookie management
-const setCookie = (name: string, value: string, days: number = 7) => {
-  const expires = new Date()
-  expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000)
-  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Strict`
-}
-
-const getCookie = (name: string): string | null => {
-  if (typeof document === 'undefined') return null
-  const nameEQ = name + "="
-  const ca = document.cookie.split(';')
-  for (let i = 0; i < ca.length; i++) {
-    let c = ca[i]
-    while (c.charAt(0) === ' ') c = c.substring(1, c.length)
-    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length)
-  }
-  return null
-}
-
-const deleteCookie = (name: string) => {
-  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
@@ -54,66 +32,80 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
-    // Check for stored auth data on mount
-    const storedToken = getCookie('fitquest_token') || localStorage.getItem('fitquest_token')
-    const storedUser = localStorage.getItem('fitquest_user')
+    const initAuth = () => {
+      const storedToken = localStorage.getItem('token')
+      const storedUserRaw = localStorage.getItem('user')
 
-    console.log('AuthProvider: Checking stored auth data...')
-    console.log('Stored token:', storedToken ? 'Found' : 'Not found')
-    console.log('Stored user:', storedUser ? 'Found' : 'Not found')
+      if (!storedToken || !storedUserRaw) {
+        console.log('Incomplete auth data found. Clearing...')
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        setIsLoading(false)
+        return
+      }
 
-    if (storedToken && storedUser) {
       try {
-        const parsedUser = JSON.parse(storedUser)
+        const parsedUser = JSON.parse(storedUserRaw)
+
+        if (parsedUser.email === 'user@fitquest.com' || !parsedUser.id) {
+          console.warn('!!! MOCK/INVALID USER DETECTED !!!')
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+          setIsLoading(false)
+          return
+        }
+
         setToken(storedToken)
         setUser(parsedUser)
         
-        // Ensure token is in both localStorage and cookies
-        localStorage.setItem('fitquest_token', storedToken)
-        setCookie('fitquest_token', storedToken)
+        // CRITICAL: Set status to online when app loads
+        updateStatus(true) 
         
-        console.log('AuthProvider: User restored from storage:', parsedUser.username)
+        console.log('Session Restored for user:', parsedUser.username)
       } catch (error) {
-        console.error('AuthProvider: Error parsing stored user data:', error)
-        // Clear invalid stored data
-        localStorage.removeItem('fitquest_token')
-        localStorage.removeItem('fitquest_user')
-        deleteCookie('fitquest_token')
+        console.error('Error parsing stored user data:', error)
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
       }
-    } else {
-      console.log('AuthProvider: No stored auth data found')
+      
+      setIsLoading(false)
     }
-    
-    setIsLoading(false)
-    console.log('AuthProvider: Initialization complete')
+
+    initAuth()
   }, [])
 
   const login = (newToken: string, newUser: User) => {
-    console.log('AuthContext: Login called with:', { token: newToken ? 'Present' : 'Missing', user: newUser.username })
-    
+    console.log('AuthContext: Logging in...')
     setToken(newToken)
     setUser(newUser)
     
-    // Store in both localStorage and cookies for better security
-    localStorage.setItem('fitquest_token', newToken)
-    localStorage.setItem('fitquest_user', JSON.stringify(newUser))
-    setCookie('fitquest_token', newToken, 7) // 7 days expiry
+    localStorage.setItem('token', newToken)
+    localStorage.setItem('user', JSON.stringify(newUser))
     
-    console.log('AuthContext: User logged in successfully:', newUser.username)
-    console.log('AuthContext: Token stored in localStorage and cookies')
+    const expires = new Date()
+    expires.setDate(expires.getDate() + 7)
+    document.cookie = `token=${newToken};expires=${expires.toUTCString()};path=/;SameSite=Lax`
+    
+    // CRITICAL: Set status to online when logging in
+    updateStatus(true)
+    
+    console.log('User logged in:', newUser.username)
   }
 
   const logout = () => {
+    console.log('AuthContext: Logging out...')
+    
+    // Set status to offline before logging out
+    updateStatus(false)
+    
     setToken(null)
     setUser(null)
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    document.cookie = `token=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`
     
-    // Clear all stored data
-    localStorage.removeItem('fitquest_token')
-    localStorage.removeItem('fitquest_user')
-    deleteCookie('fitquest_token')
-    
-    console.log('User logged out')
-    router.push('/login')
+    console.log('Storage cleared. Redirecting...')
+    window.location.href = '/login'
   }
 
   const value = {

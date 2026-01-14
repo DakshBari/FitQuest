@@ -14,100 +14,52 @@ export interface AuthResponse {
   };
 }
 
-// Helper to handle API errors
-const handleResponse = async (response: Response) => {
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.message || 'Something went wrong');
-  }
-  return data;
-};
-
-// Mock authentication for development (when backend is not available)
-const mockAuth = async (email: string, password: string): Promise<AuthResponse> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  // Simple validation
-  if (!email || !password) {
-    throw new Error('Email and password are required');
-  }
-  
-  if (password.length < 6) {
-    throw new Error('Password must be at least 6 characters');
-  }
-  
-  // Mock user data
-  return {
-    status: 'success',
-    token: `mock_token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    user: {
-      id: `user_${Math.random().toString(36).substr(2, 9)}`,
-      username: email.split('@')[0] || 'Warrior',
-      email: email,
-      level: Math.floor(Math.random() * 50) + 1,
-      xp: Math.floor(Math.random() * 10000),
-      stats: {
-        workoutsCompleted: Math.floor(Math.random() * 100),
-        totalXP: Math.floor(Math.random() * 10000),
-        streak: Math.floor(Math.random() * 30),
-        achievements: Math.floor(Math.random() * 20)
-      },
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`
-    }
-  };
-};
-
 export const login = async (email: string, password: string): Promise<AuthResponse> => {
-  try {
-    // Try real API first
-    const response = await fetch(`${API_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
+  const response = await fetch(`${API_URL}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
 
-    return handleResponse(response);
-  } catch (error) {
-    console.warn('Backend API not available, using mock authentication:', error);
-    // Fall back to mock authentication
-    return mockAuth(email, password);
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.message || 'Login failed');
   }
+
+  return await response.json();
 };
 
 export const signup = async (username: string, email: string, password: string): Promise<AuthResponse> => {
-  try {
-    // Try real API first
-    const response = await fetch(`${API_URL}/api/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, password }),
-    });
+  const response = await fetch(`${API_URL}/api/auth/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, email, password }),
+  });
 
-    return handleResponse(response);
-  } catch (error) {
-    console.warn('Backend API not available, using mock authentication:', error);
-    // Fall back to mock authentication for signup
-    return mockAuth(email, password);
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.message || 'Signup failed');
   }
+
+  return await response.json();
 };
 
-// Validate token (for checking if stored token is still valid)
-export const validateToken = async (token: string): Promise<boolean> => {
+// NEW: Function to update Online Status
+export const updateStatus = async (isOnline: boolean): Promise<void> => {
   try {
-    const response = await fetch(`${API_URL}/api/auth/validate`, {
-      method: 'GET',
-      headers: { 
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json' 
+    const response = await fetch(`${API_URL}/api/users/status`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
       },
+      body: JSON.stringify({ isOnline })
     });
 
-    return response.ok;
+    if (!response.ok) {
+      console.warn('Failed to update status:', response.status);
+    }
   } catch (error) {
-    console.warn('Token validation API not available, assuming token is valid for development');
-    // If backend is not available, assume all tokens are valid for development
-    // This prevents users from being logged out when the backend is down
-    return !!token && token.length > 0;
+    console.error('Error updating status:', error);
   }
 };

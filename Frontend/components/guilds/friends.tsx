@@ -18,8 +18,15 @@ import {
   UserPlus, 
   Users, 
   Loader2,
-  Check
+  Check,
+  XCircle,
+  Inbox,
+  UserCheck,
+  UserX,
+  Trash2
 } from "lucide-react"
+import { updateStatus } from "@/services/authService"
+import { toast } from "@/components/ui/sonner"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -44,54 +51,148 @@ export default function FriendsComponent() {
   const [friends, setFriends] = useState<Friend[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(true)
-  
-  // Add Friend Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isRequestsModalOpen, setIsRequestsModalOpen] = useState(false)
   const [userSearchQuery, setUserSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
   const [pendingRequests, setPendingRequests] = useState<Set<string>>(new Set())
   const [requestStatus, setRequestStatus] = useState<Record<string, "sent" | "error">>({})
-
-  // Helper to get auth config
-  const getAuthConfig = () => {
+  const [friendRequests, setFriendRequests] = useState<any[]>([])
+  const [requestsLoading, setRequestsLoading] = useState(false)
+  const [processingRequestIds, setProcessingRequestIds] = useState<Set<string>>(new Set())
+  const [deletingFriendId, setDeletingFriendId] = useState<string | null>(null)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [friendToDelete, setFriendToDelete] = useState<Friend | null>(null)
+  const getHeaders = () => {
     const token = localStorage.getItem('token');
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
-
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
-      console.log("[Auth] Token found, attaching to request.");
-    } else {
-      console.warn("[Auth] WARNING: No token found in localStorage!");
     }
-
-    return {
-      headers,
-      credentials: 'include' // Included for safety, but Backend expects Bearer Token
-    };
+    return headers;
   };
 
   // Fetch Friends on Mount
   useEffect(() => {
     fetchFriends()
+    updateStatus(true)
   }, [])
+
+  const fetchFriendRequests = async () => {
+    try {
+      setRequestsLoading(true)
+      const res = await fetch(`${API_URL}/api/guilds/friends/requests`, {
+        method: 'GET',
+        headers: getHeaders()
+      })
+      
+      if (!res.ok) {
+        throw new Error('Failed to fetch friend requests')
+      }
+      
+      const data = await res.json()
+      if (data.status === 'success') {
+        setFriendRequests(data.requests)
+      }
+    } catch (error: any) {
+      console.error("Fetch Requests Error:", error.message);
+    } finally {
+      setRequestsLoading(false)
+    }
+  }
+
+  const handleFriendRequest = async (requestId: string, action: 'accept' | 'reject') => {
+    setProcessingRequestIds(prev => new Set(prev).add(requestId))
+    
+    try {
+      const res = await fetch(`${API_URL}/api/guilds/friends/requests/${requestId}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify({ action })
+      })
+
+      if (!res.ok) {
+        throw new Error(`Failed to ${action} request`)
+      }
+
+      if (action === 'accept') {
+        toast.success("Friend request accepted!")
+        // Refresh friends list
+        fetchFriends()
+      } else {
+        toast.success("Friend request rejected")
+      }
+
+      // Remove from requests list
+      setFriendRequests(prev => prev.filter(r => r.id !== requestId))
+      
+    } catch (error: any) {
+      console.error(`${action} Request Error:`, error.message);
+      toast.error(`Failed to ${action} request`)
+    } finally {
+      setProcessingRequestIds(prev => {
+        const next = new Set(prev)
+        next.delete(requestId)
+        return next
+      })
+    }
+  }
+
+  const openDeleteModal = (friend: Friend) => {
+    setFriendToDelete(friend)
+    setIsDeleteModalOpen(true)
+  }
+
+  const deleteFriend = async () => {
+    if (!friendToDelete) return
+    
+    setDeletingFriendId(friendToDelete.id)
+    
+    try {
+      const res = await fetch(`${API_URL}/api/guilds/friends/${friendToDelete.id}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      })
+
+      if (!res.ok) {
+        throw new Error('Failed to remove friend')
+      }
+
+      toast.success(`${friendToDelete.name} removed from friends`)
+      setFriends(prev => prev.filter(f => f.id !== friendToDelete.id))
+      setIsDeleteModalOpen(false)
+      setFriendToDelete(null)
+      
+    } catch (error: any) {
+      console.error("Delete Friend Error:", error.message);
+      toast.error("Failed to remove friend")
+    } finally {
+      setDeletingFriendId(null)
+    }
+  }
 
   const fetchFriends = async () => {
     try {
       setLoading(true)
-      console.log("Fetching friends from:", `${API_URL}/api/guilds/friends`);
-      
       const res = await fetch(`${API_URL}/api/guilds/friends`, {
         method: 'GET',
-        ...getAuthConfig()
+        headers: getHeaders()
       })
       
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
+        let errorData: any;
+        const text = await res.text();
+        try {
+          errorData = JSON.parse(text);
+        } catch (e) {
+          errorData = { message: text };
+        }
         console.error(`[Friends Error] Status: ${res.status}`, errorData);
-        throw new Error(`Failed to fetch friends: ${res.status}`);
+        const msg = errorData.message || res.statusText || 'Failed to fetch friends';
+        throw new Error(msg);
       }
       
       const data = await res.json()
@@ -108,12 +209,13 @@ export default function FriendsComponent() {
       }
     } catch (error: any) {
       console.error("Fetch Friends Error:", error.message);
+      // Don't clear friends list on error to prevent "No friends found" flash
+      // Only clear on successful fetch
     } finally {
       setLoading(false)
     }
   }
 
-  // Search Users functionality
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       if (userSearchQuery.trim().length > 0) {
@@ -129,16 +231,22 @@ export default function FriendsComponent() {
   const searchUsers = async (query: string) => {
     try {
       setSearchLoading(true)
-      const url = `${API_URL}/api/users/search?q=${encodeURIComponent(query)}`;
-      console.log("Searching users at:", url);
+      // Call updateStatus to ensure you appear online to people you search
+      updateStatus(true)
 
-      const res = await fetch(url, {
+      const res = await fetch(`${API_URL}/api/users/search?q=${encodeURIComponent(query)}`, {
         method: 'GET',
-        ...getAuthConfig()
+        headers: getHeaders()
       })
 
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
+        let errorData: any;
+        const text = await res.text();
+        try {
+          errorData = JSON.parse(text);
+        } catch (e) {
+          errorData = { message: text };
+        }
         console.error(`[Search Error] Status: ${res.status}`, errorData);
         setSearchResults([])
         return;
@@ -146,8 +254,12 @@ export default function FriendsComponent() {
 
       const data = await res.json()
       if (data.status === 'success') {
+        // Filter out users who are already friends
         const friendIds = new Set(friends.map(f => f.id))
-        const newUsers = data.users.filter((u: SearchResult) => !friendIds.has(u._id))
+        // Also filter out users who have been sent a request (marked as "sent")
+        const newUsers = data.users.filter((u: SearchResult) => 
+          !friendIds.has(u._id) && requestStatus[u._id] !== "sent"
+        )
         setSearchResults(newUsers)
       }
     } catch (error: any) {
@@ -163,22 +275,49 @@ export default function FriendsComponent() {
     
     try {
       const res = await fetch(`${API_URL}/api/guilds/friends/request`, {
-        method: 'POST',
-        ...getAuthConfig(),
+        method: 'POST', 
+        headers: getHeaders(),
         body: JSON.stringify({ userId })
       })
 
+      let errorMessage = 'Failed to send request';
+
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
+        let errorData: any;
+        const text = await res.text();
+        try {
+          errorData = JSON.parse(text);
+        } catch (e) {
+          errorData = { message: text };
+        }
         console.error(`[Request Error] Status: ${res.status}`, errorData);
-        throw new Error('Failed to send request');
+        
+        // Extract specific message
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.errors) {
+          errorMessage = errorData.errors[0]?.msg || 'Validation failed';
+        }
+        
+        // Show Toast with specific message (e.g., "Friendship already exists")
+        toast.error(errorMessage);
+        
+        throw new Error(errorMessage);
       }
 
+      // Request succeeded - mark as sent and remove from search results
       setRequestStatus(prev => ({ ...prev, [userId]: "sent" }))
       setSearchResults(prev => prev.filter(u => u._id !== userId))
+      
+      // Show success toast
+      toast.success("Friend request sent!")
+      
+      // No need to reload friends list since request is pending 
+      
     } catch (error: any) {
       console.error("Send Request Error:", error.message);
       setRequestStatus(prev => ({ ...prev, [userId]: "error" }))
+      // No setRequestStatus(prev => ...sent...) here on error, so button stays clickable/Retry-able
     } finally {
       setPendingRequests(prev => {
         const next = new Set(prev)
@@ -210,6 +349,105 @@ export default function FriendsComponent() {
                 className="pl-10 border-border focus:border-[#00BBA7] focus:ring-[#00BBA7]/20"
               />
             </div>
+
+            <Dialog open={isRequestsModalOpen} onOpenChange={(open) => {
+              setIsRequestsModalOpen(open)
+              if (open) fetchFriendRequests()
+            }}>
+              <DialogTrigger asChild>
+                <Button 
+                  variant="outline"
+                  className="border-[#00BBA7]/30 text-[#00BBA7] hover:bg-[#00BBA7]/10 font-medium relative"
+                >
+                  <Inbox className="h-4 w-4 mr-2" />
+                  Requests
+                  {friendRequests.length > 0 && (
+                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                      {friendRequests.length}
+                    </span>
+                  )}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Friend Requests</DialogTitle>
+                  <DialogDescription>
+                    Accept or reject pending friend requests.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  {requestsLoading ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <div className="max-h-[400px] overflow-y-auto space-y-3">
+                      {friendRequests.length === 0 ? (
+                        <div className="py-12 text-center text-muted-foreground">
+                          <Inbox className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                          <p>No pending friend requests</p>
+                        </div>
+                      ) : (
+                        friendRequests.map((request) => (
+                          <div
+                            key={request.id}
+                            className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <Avatar className="h-10 w-10">
+                                  <AvatarFallback className="bg-[#00BBA7]/10 text-[#00BBA7] font-semibold">
+                                    {request.user.avatar}
+                                  </AvatarFallback>
+                                </Avatar>
+                                {request.user.online && (
+                                  <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-foreground">{request.user.name}</p>
+                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                  <span className={`w-1.5 h-1.5 rounded-full ${request.user.online ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+                                  {request.user.online ? 'Online' : 'Offline'} • Lvl {request.user.level}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 px-3 border-red-500/30 text-red-500 hover:bg-red-500/10"
+                                onClick={() => handleFriendRequest(request.id, 'reject')}
+                                disabled={processingRequestIds.has(request.id)}
+                              >
+                                {processingRequestIds.has(request.id) ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <UserX className="h-3 w-3" />
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="h-8 px-3 bg-[#00BBA7] hover:bg-[#009688] text-white"
+                                onClick={() => handleFriendRequest(request.id, 'accept')}
+                                disabled={processingRequestIds.has(request.id)}
+                              >
+                                {processingRequestIds.has(request.id) ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <UserCheck className="h-3 w-3" />
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
 
             <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
               <DialogTrigger asChild>
@@ -288,6 +526,9 @@ export default function FriendsComponent() {
                             <>
                               <Check className="h-3 w-3 mr-1" /> Sent
                             </>
+                          ) : requestStatus[user._id] === "error" ? (
+                             // If error, show specific toast (handled in function) and button text
+                             "Retry"
                           ) : (
                             "Add"
                           )}
@@ -332,11 +573,16 @@ export default function FriendsComponent() {
                       </p>
                     </div>
                   </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                    onClick={() => openDeleteModal(friend)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-                <div className="flex items-center justify-between mt-2">
-                  <span className="text-xs text-muted-foreground px-2 py-1 bg-background rounded border border-border">
-                    Lvl {friend.level}
-                  </span>
+                <div className="flex items-center justify-end mt-2">
                   <Button
                     size="sm"
                     variant="outline"
@@ -356,6 +602,48 @@ export default function FriendsComponent() {
           </div>
         )}
       </Card>
+
+      {/* Delete Friend Confirmation Modal */}
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Remove Friend</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove {friendToDelete?.name} from your friends list?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDeleteModalOpen(false)
+                setFriendToDelete(null)
+              }}
+              disabled={deletingFriendId !== null}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={deleteFriend}
+              disabled={deletingFriendId !== null}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              {deletingFriendId ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Removing...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Remove
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

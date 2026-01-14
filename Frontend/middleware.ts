@@ -1,29 +1,42 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-// Define protected and public routes
-const protectedRoutes = ['/dashboard', '/arena', '/sanctuary', '/kitchen', '/world', '/profile']
-const publicRoutes = ['/login', '/signup', '/']
+// Define protected routes (requires login)
+const protectedRoutes = [
+  '/dashboard', 
+  '/kitchen', 
+  '/arena', 
+  '/sanctuary', 
+  '/world-map', 
+  '/guilds', 
+  '/profile', 
+  '/settings'
+]
+
+// Define public auth routes (login/signup)
+const authRoutes = ['/login', '/signup']
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
-  // Get token from cookies or headers
-  const token = request.cookies.get('fitquest_token')?.value || 
+  // FIX 1: Check for cookie named 'token' (matches AuthContext)
+  const token = request.cookies.get('token')?.value || 
                 request.headers.get('authorization')?.replace('Bearer ', '')
   
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
-  const isPublicRoute = publicRoutes.includes(pathname)
+  const isAuthRoute = authRoutes.includes(pathname)
   
-  // If accessing a protected route without token, redirect to login
+  // 1. If accessing a protected route WITHOUT a token -> Redirect to Login
   if (isProtectedRoute && !token) {
     const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('redirect', pathname)
+    // Optional: Keep the URL they tried to visit so they go back after login
+    // loginUrl.searchParams.set('redirect', pathname) 
     return NextResponse.redirect(loginUrl)
   }
   
-  // If accessing login/signup with valid token, redirect to dashboard
-  if ((pathname === '/login' || pathname === '/signup') && token) {
+  // FIX 2: If accessing Login/Signup page AND token exists -> Redirect to Dashboard
+  // We check isAuthRoute AND token separately to avoid operator precedence bugs
+  if (isAuthRoute && token) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
   
