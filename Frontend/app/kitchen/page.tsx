@@ -20,9 +20,12 @@ import { getThemeClasses } from "@/lib/pageThemes"
 import { cn } from "@/lib/utils"
 import { PageHeader, ThemedButton } from "@/components/page-header"
 import { ThemedTabsTrigger } from "@/components/themed-tabs"
+import { ProtectedLayout } from "@/components/layouts/ProtectedLayout"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function KitchenPage() {
-  const api = useApi() // Add this line
+  const api = useApi()
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
   const pathname = usePathname()
   const themeClasses = getThemeClasses(pathname)
   const [showGoalSettings, setShowGoalSettings] = useState(false)
@@ -140,11 +143,14 @@ export default function KitchenPage() {
     }
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    fetchDailyData()
-    fetchHydration()
-    fetchFavorites() // Fetch all favorites
-  }, [])
+    if (isAuthenticated && !authLoading) {
+      fetchDailyData()
+      fetchHydration()
+      fetchFavorites() // Fetch all favorites
+    }
+  }, [isAuthenticated, authLoading])
 
   useEffect(() => {
     if (viewMode === 'weekly') {
@@ -306,7 +312,8 @@ export default function KitchenPage() {
   const favorites = meals.filter(m => m.isFavorite)
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <ProtectedLayout>
+      <div className="min-h-screen flex flex-col bg-background">
       {showGoalSettings && (
         <GoalSettings 
           profile={profile} 
@@ -583,5 +590,6 @@ export default function KitchenPage() {
         onAdd={handleAddMeal} 
       />
     </div>
+    </ProtectedLayout>
   )
 }

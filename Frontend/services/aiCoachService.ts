@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 export interface Message {
   role: 'user' | 'ai';
@@ -30,7 +30,7 @@ export interface Recommendation {
 class AICoachService {
   private getAuthHeaders() {
     // Get token from localStorage using the correct key
-    const token = typeof window !== 'undefined' ? localStorage.getItem('fitquest_token') : null;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     return {
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
@@ -39,7 +39,7 @@ class AICoachService {
 
   async sendMessage(message: string, sessionId?: string): Promise<ChatResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/ai-coach/chat`, {
+      const response = await fetch(`${API_BASE_URL}/api/ai-coach/chat`, {
         method: 'POST',
         headers: this.getAuthHeaders(),
         body: JSON.stringify({ message, sessionId }),
@@ -62,7 +62,7 @@ class AICoachService {
 
   async getChatSessions(): Promise<ChatSession[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/ai-coach/sessions`, {
+      const response = await fetch(`${API_BASE_URL}/api/ai-coach/sessions`, {
         method: 'GET',
         headers: this.getAuthHeaders(),
       });
@@ -84,7 +84,7 @@ class AICoachService {
 
   async deleteChatSession(sessionId: string): Promise<void> {
     try {
-      const response = await fetch(`${API_BASE_URL}/ai-coach/sessions/${sessionId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/ai-coach/sessions/${sessionId}`, {
         method: 'DELETE',
         headers: this.getAuthHeaders(),
       });
@@ -103,7 +103,7 @@ class AICoachService {
 
   async getRecommendations(): Promise<Recommendation[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/ai-coach/recommendations`, {
+      const response = await fetch(`${API_BASE_URL}/api/ai-coach/recommendations`, {
         method: 'GET',
         headers: this.getAuthHeaders(),
       });
@@ -125,7 +125,7 @@ class AICoachService {
 
   async analyzeForm(exerciseType: string, videoData?: string): Promise<any> {
     try {
-      const response = await fetch(`${API_BASE_URL}/ai-coach/analyze-form`, {
+      const response = await fetch(`${API_BASE_URL}/api/ai-coach/analyze-form`, {
         method: 'POST',
         headers: this.getAuthHeaders(),
         body: JSON.stringify({ exerciseType, videoData }),
