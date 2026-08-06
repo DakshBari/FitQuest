@@ -29,7 +29,7 @@ export function StrongholdSidebar({ strongholds, selectedId, onSelect }: Strongh
 
   return (
     <Card className="bg-card/80 backdrop-blur-xl border border-border rounded-2xl h-full overflow-hidden flex flex-col shadow-lg shadow-primary/5 ring-1 ring-border/30">
-      <div className="p-6 border-b border-border bg-gradient-to-r from-[#2B7FFF]/10 via-transparent to-[#4A90FF]/10">
+      <div className="p-6 border-b border-border bg-gradient-to-r from-[#8b5cf6]/10 via-transparent to-[#a78bfa]/10">
         <div className="flex items-center gap-3">
           <div 
             className={cn("w-8 h-8 rounded-lg flex items-center justify-center", themeClasses.buttonGradient)}
@@ -50,13 +50,13 @@ export function StrongholdSidebar({ strongholds, selectedId, onSelect }: Strongh
               "p-4 rounded-xl border transition-all cursor-pointer group relative overflow-hidden",
               hold.captured
                 ? "bg-green-500/10 border-green-500/30 shadow-lg shadow-green-500/10"
-                : "bg-card/50 border-border hover:border-[#2B7FFF]/50 hover:bg-[#2B7FFF]/5 hover:shadow-lg hover:shadow-[#2B7FFF]/10",
-              selectedId === hold.id ? "ring-2 ring-[#2B7FFF]/50 shadow-xl shadow-[#2B7FFF]/20" : ""
+                : "bg-card/50 border-border hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/5 hover:shadow-lg hover:shadow-[#8b5cf6]/10",
+              selectedId === hold.id ? "ring-2 ring-[#8b5cf6]/50 shadow-xl shadow-[#8b5cf6]/20" : ""
             )}
           >
             <div className="flex justify-between items-start mb-3">
               <div className="flex items-start gap-2">
-                <MapPin className={cn("h-4 w-4 mt-0.5", hold.captured ? "text-green-400" : "text-[#2B7FFF]")} />
+                <MapPin className={cn("h-4 w-4 mt-0.5", hold.captured ? "text-green-400" : "text-[#8b5cf6]")} />
                 <div>
                   <h3 className="font-semibold text-foreground text-sm leading-tight">{hold.name}</h3>
                   <p className="text-xs text-muted-foreground mt-1">{hold.distance} away</p>

@@ -107,8 +107,8 @@ export function AICameraView({ onSwitchMode }: { onSwitchMode?: () => void }) {
                                 </div>
                             )}
                             {feedback === 'poor' && (
-                                <div className="px-4 py-2 bg-red-500/90 backdrop-blur-md border border-red-400 rounded-xl animate-in zoom-in-95">
-                                    <span className="text-red-100 font-bold text-sm flex items-center gap-2">
+                                <div className="px-4 py-2 bg-violet-500/90 backdrop-blur-md border border-violet-400 rounded-xl animate-in zoom-in-95">
+                                    <span className="text-violet-100 font-bold text-sm flex items-center gap-2">
                                         <AlertTriangle className="w-4 h-4"/> Correct Posture
                                     </span>
                                 </div>

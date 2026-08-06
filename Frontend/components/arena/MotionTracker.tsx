@@ -294,20 +294,20 @@ export function MotionTracker({ exercise, mode, onBack }: MotionTrackerProps) {
   const getFormScoreColor = (score: number) => {
     if (score >= 90) return 'text-green-500'
     if (score >= 70) return 'text-yellow-500'
-    return 'text-red-500'
+    return 'text-violet-500'
   }
 
   const getFormScoreBadge = (score: number) => {
     if (score >= 90) return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
     if (score >= 70) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-    return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+    return 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300'
   }
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'Beginner': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
       case 'Intermediate': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-      case 'Advanced': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+      case 'Advanced': return 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300'
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
     }
   }
@@ -501,7 +501,7 @@ export function MotionTracker({ exercise, mode, onBack }: MotionTrackerProps) {
               <div
                 className={`h-3 rounded-full transition-all duration-300 ${
                   analysis.form_score >= 90 ? 'bg-green-500' :
-                  analysis.form_score >= 70 ? 'bg-yellow-500' : 'bg-red-500'
+                  analysis.form_score >= 70 ? 'bg-yellow-500' : 'bg-violet-500'
                 }`}
                 style={{ width: `${analysis.form_score}%` }}
               />

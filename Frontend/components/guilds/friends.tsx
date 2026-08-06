@@ -336,7 +336,7 @@ export default function FriendsComponent() {
       <Card className="bg-card border border-border p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
-            <Users className="h-5 w-5 text-[#00BBA7]" />
+            <Users className="h-5 w-5 text-[#8b5cf6]" />
             Friends ({friends.length})
           </h2>
           <div className="flex items-center gap-4">
@@ -346,7 +346,7 @@ export default function FriendsComponent() {
                 placeholder="Search friends..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 border-border focus:border-[#00BBA7] focus:ring-[#00BBA7]/20"
+                className="pl-10 border-border focus:border-[#8b5cf6] focus:ring-[#8b5cf6]/20"
               />
             </div>
 
@@ -357,7 +357,7 @@ export default function FriendsComponent() {
               <DialogTrigger asChild>
                 <Button 
                   variant="outline"
-                  className="border-[#00BBA7]/30 text-[#00BBA7] hover:bg-[#00BBA7]/10 font-medium relative"
+                  className="border-[#8b5cf6]/30 text-[#8b5cf6] hover:bg-[#8b5cf6]/10 font-medium relative"
                 >
                   <Inbox className="h-4 w-4 mr-2" />
                   Requests
@@ -396,7 +396,7 @@ export default function FriendsComponent() {
                             <div className="flex items-center gap-3">
                               <div className="relative">
                                 <Avatar className="h-10 w-10">
-                                  <AvatarFallback className="bg-[#00BBA7]/10 text-[#00BBA7] font-semibold">
+                                  <AvatarFallback className="bg-[#8b5cf6]/10 text-[#8b5cf6] font-semibold">
                                     {request.user.avatar}
                                   </AvatarFallback>
                                 </Avatar>
@@ -429,7 +429,7 @@ export default function FriendsComponent() {
                               </Button>
                               <Button
                                 size="sm"
-                                className="h-8 px-3 bg-[#00BBA7] hover:bg-[#009688] text-white"
+                                className="h-8 px-3 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white"
                                 onClick={() => handleFriendRequest(request.id, 'accept')}
                                 disabled={processingRequestIds.has(request.id)}
                               >
@@ -452,7 +452,7 @@ export default function FriendsComponent() {
             <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
               <DialogTrigger asChild>
                 <Button 
-                  className="bg-[#00BBA7] hover:bg-[#009688] text-white font-medium"
+                  className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-white font-medium"
                 >
                   <UserPlus className="h-4 w-4 mr-2" />
                   Add Friend
@@ -497,7 +497,7 @@ export default function FriendsComponent() {
                         <div className="flex items-center gap-3">
                           <div className="relative">
                             <Avatar className="h-9 w-9">
-                              <AvatarFallback className="bg-[#00BBA7]/10 text-[#00BBA7] text-xs font-semibold">
+                              <AvatarFallback className="bg-[#8b5cf6]/10 text-[#8b5cf6] text-xs font-semibold">
                                 {user.avatar || user.username.substring(0, 2).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
@@ -551,12 +551,12 @@ export default function FriendsComponent() {
             {filteredFriends.map((friend) => (
               <div
                 key={friend.id}
-                className="p-4 bg-muted/50 rounded-lg border border-border hover:border-[#00BBA7]/50 transition-all"
+                className="p-4 bg-muted/50 rounded-lg border border-border hover:border-[#8b5cf6]/50 transition-all"
               >
                 <div className="flex items-center gap-3 mb-3">
                   <div className="relative">
                     <Avatar className="h-10 w-10">
-                      <AvatarFallback className="bg-[#00BBA7]/10 text-[#00BBA7] font-semibold">
+                      <AvatarFallback className="bg-[#8b5cf6]/10 text-[#8b5cf6] font-semibold">
                         {friend.avatar}
                       </AvatarFallback>
                     </Avatar>
@@ -586,7 +586,7 @@ export default function FriendsComponent() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 text-xs border-[#00BBA7]/30 text-[#00BBA7] hover:bg-[#00BBA7]/10"
+                    className="h-8 text-xs border-[#8b5cf6]/30 text-[#8b5cf6] hover:bg-[#8b5cf6]/10"
                   >
                     View Profile
                   </Button>

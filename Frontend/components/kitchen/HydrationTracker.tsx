@@ -1,217 +1,353 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Droplet, Plus } from "lucide-react"
+import { Droplets, Plus, Waves } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface HydrationTrackerProps {
   current: number
   target: number
   onAdd: (amount: number) => void
-  viewMode?: 'daily' | 'weekly'
-  weeklyData?: Array<{
-    date: string
-    amount: number
-    dayName: string
-  }>
+  viewMode?: "daily" | "weekly"
+  weeklyData?: Array<{ date: string; amount: number; dayName: string }>
   weeklyTotal?: number
 }
 
-export function HydrationTracker({ 
-  current, 
-  target, 
-  onAdd, 
-  viewMode = 'daily',
+// ── Animated wave SVG path generator ──────────────────────────────────────────
+function getWavePath(offset: number, width = 200, waveH = 8): string {
+  const y = 0
+  return `M -${width} ${y}
+    C -${width * 0.75} ${y - waveH}, -${width * 0.25} ${y + waveH}, 0 ${y}
+    C ${width * 0.25} ${y - waveH}, ${width * 0.75} ${y + waveH}, ${width} ${y}
+    C ${width * 1.25} ${y - waveH}, ${width * 1.75} ${y + waveH}, ${width * 2} ${y}
+    L ${width * 2} 400 L -${width} 400 Z`
+}
+
+export function HydrationTracker({
+  current,
+  target,
+  onAdd,
+  viewMode = "daily",
   weeklyData = [],
-  weeklyTotal = 0
+  weeklyTotal = 0,
 }: HydrationTrackerProps) {
-    // FIX: Add safety checks for NaN calculation
-    const safeCurrent = typeof current === 'number' && !isNaN(current) ? current : 0;
-    const safeTarget = typeof target === 'number' && !isNaN(target) && target > 0 ? target : 3000;
-    
-    // Calculate percentage based on view mode
-    const displayCurrent = viewMode === 'weekly' ? weeklyTotal : safeCurrent;
-    const displayTarget = viewMode === 'weekly' ? safeTarget * 7 : safeTarget;
-    const pct = Math.min((displayCurrent / displayTarget) * 100, 100);
-    const [customAmount, setCustomAmount] = useState("");
-    
-    const [isPouring, setIsPouring] = useState(false);
+  const safeCurrent = typeof current === "number" && !isNaN(current) ? current : 0
+  const safeTarget = typeof target === "number" && !isNaN(target) && target > 0 ? target : 3000
 
-    const handleAdd = (amount: number) => {
-        onAdd(amount);
-        triggerPour();
+  const displayCurrent = viewMode === "weekly" ? weeklyTotal : safeCurrent
+  const displayTarget = viewMode === "weekly" ? safeTarget * 7 : safeTarget
+  const pct = Math.min((displayCurrent / displayTarget) * 100, 100)
+
+  const [customAmount, setCustomAmount] = useState("")
+  const [ripples, setRipples] = useState<{ id: number; x: number; y: number }[]>([])
+  const [waveOffset, setWaveOffset] = useState(0)
+  const [animPct, setAnimPct] = useState(0)
+  const rippleId = useRef(0)
+  const animFrame = useRef<number>(0)
+  const animPrevRef = useRef(0)
+
+  // Smooth animated fill
+  useEffect(() => {
+    const duration = 1200
+    const start = animPrevRef.current
+    const diff = pct - start
+    const startTime = performance.now()
+    const step = (now: number) => {
+      const t = Math.min((now - startTime) / duration, 1)
+      const ease = 1 - Math.pow(1 - t, 3)
+      const next = start + diff * ease
+      setAnimPct(next)
+      animPrevRef.current = next
+      if (t < 1) animFrame.current = requestAnimationFrame(step)
     }
+    animFrame.current = requestAnimationFrame(step)
+    return () => { cancelAnimationFrame(animFrame.current) }
+  }, [pct])
 
-    const handleCustomAdd = () => {
-        const amount = parseInt(customAmount);
-        if(amount && amount > 0) {
-            handleAdd(amount);
-            setCustomAmount("");
-        }
+  // Continuous wave animation
+  useEffect(() => {
+    let frame: number
+    let offset = 0
+    const animate = () => {
+      offset = (offset + 1.2) % 200
+      setWaveOffset(offset)
+      frame = requestAnimationFrame(animate)
     }
+    frame = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(frame)
+  }, [])
 
-    const triggerPour = () => {
-        setIsPouring(true);
-        setTimeout(() => setIsPouring(false), 800); 
+  const triggerRipple = (e?: React.MouseEvent) => {
+    const id = rippleId.current++
+    const x = e ? e.nativeEvent.offsetX : 50
+    const y = e ? e.nativeEvent.offsetY : 50
+    setRipples((prev) => [...prev, { id, x, y }])
+    setTimeout(() => setRipples((prev) => prev.filter((r) => r.id !== id)), 700)
+  }
+
+  const handleAdd = (amount: number, e?: React.MouseEvent) => {
+    onAdd(amount)
+    triggerRipple(e)
+  }
+
+  const handleCustomAdd = () => {
+    const amount = parseInt(customAmount)
+    if (amount && amount > 0) {
+      handleAdd(amount)
+      setCustomAmount("")
     }
+  }
 
-    const bottlePath = "M 20,0 L 60,0 L 60,50 L 80,60 L 80,190 Q 80,200 70,200 L 10,200 Q 0,200 0,190 L 0,60 L 20,50 Z";
+  // Bottle dimensions
+  const BW = 100   // bottle body width
+  const BH = 220   // bottle body height
+  const NW = 38    // neck width
+  const NH = 30    // neck height
+  const CAP = 14   // cap height
 
-    return (
-        <Card className="bg-gradient-to-br from-blue-500/10 to-cyan-500/5 border-blue-500/20 shadow-sm p-5 flex flex-col justify-between h-[240px] rounded-2xl relative overflow-hidden">
-            {/* Background Decoration */}
-            <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
-            
-            {/* Header Section */}
-            <div className="flex justify-between items-start z-10">
-                <div>
-                    <h3 className="font-bold text-foreground tracking-wide text-sm flex items-center gap-2">
-                        <Droplet className="w-3.5 h-3.5 text-blue-500 fill-blue-500/20"/> Hydration
-                    </h3>
-                    <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">
-                      {viewMode === 'weekly' ? 'Weekly Goal' : 'Daily Goal'}
-                    </p>
-                </div>
-                <div className="text-right">
-                    <p className="text-2xl font-bold text-blue-500 font-mono leading-none">
-                      {displayCurrent}<span className="text-sm text-muted-foreground ml-1 font-sans">ml</span>
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">Target: {displayTarget}ml</p>
-                </div>
-            </div>
+  // Water fill level (inside bottle body area: y from 60 to 280 in viewBox)
+  const bodyTop = NH + CAP + 10
+  const bodyBottom = bodyTop + BH
+  const fillY = bodyBottom - (animPct / 100) * BH
+  const waterColor1 = animPct >= 100 ? "#0ea5e9" : "#38bdf8"
+  const waterColor2 = animPct >= 100 ? "#0369a1" : "#0284c7"
 
-            {/* Body Section: Bottle & Controls */}
-            <div className="flex items-end justify-between gap-4 z-10 mt-2">
-                
-                {/* Bottle Visual */}
-                <div className="relative w-[70px] h-[140px] flex-shrink-0 select-none">
-                    <svg viewBox="0 0 80 220" className="w-full h-full drop-shadow-lg">
-                        <defs>
-                            <linearGradient id="glassGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.2"/>
-                                <stop offset="50%" stopColor="#ffffff" stopOpacity="0.05"/>
-                                <stop offset="100%" stopColor="#ffffff" stopOpacity="0.1"/>
-                            </linearGradient>
-                            <clipPath id="bottleClip">
-                                <path d={bottlePath} />
-                            </clipPath>
-                        </defs>
+  return (
+    <Card className="bg-card/70 backdrop-blur-xl border-border/50 rounded-3xl shadow-lg shadow-black/5 p-5 flex flex-col gap-4 overflow-hidden relative group hover:-translate-y-0.5 transition-all duration-300">
+      {/* Background glow */}
+      <div className="absolute -top-10 -right-10 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none group-hover:scale-125 transition-transform duration-700" />
 
-                        <path d={bottlePath} fill="url(#glassGradient)" stroke="rgba(255,255,255,0.3)" strokeWidth="2" />
+      {/* Header */}
+      <div className="flex items-center justify-between relative">
+        <div className="flex items-center gap-2">
+          <div className="p-2 rounded-xl bg-cyan-500/15">
+            <Droplets className="h-4 w-4 text-cyan-500" />
+          </div>
+          <span className="font-semibold text-foreground text-sm">Hydration</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-muted-foreground uppercase tracking-wider">
+            {viewMode === "weekly" ? "Weekly" : "Daily"}
+          </span>
+          <span className="text-xs font-bold text-cyan-500 tabular-nums">
+            {Math.round(pct)}%
+          </span>
+        </div>
+      </div>
 
-                        <g clipPath="url(#bottleClip)">
-                            {/* FIX: Use calculated pct here */}
-                            <rect 
-                                x="-10" 
-                                y={200 - (pct/100 * 200)} 
-                                width="100" 
-                                height="220" 
-                                fill="url(#waterGradient)"
-                                className="transition-all duration-1000 ease-out"
-                            />
-                            <defs>
-                                <linearGradient id="waterGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                    <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.9"/>
-                                    <stop offset="100%" stopColor="#1e3a8a" stopOpacity="1"/>
-                                </linearGradient>
-                            </defs>
-                            {/* Surface Shine */}
-                            <rect 
-                                x="-10" 
-                                y={200 - (pct/100 * 200)} 
-                                width="100" 
-                                height="1.5" 
-                                fill="white" 
-                                opacity="0.4"
-                                className="transition-all duration-1000 ease-out"
-                            />
-                        </g>
+      {/* Main content */}
+      {viewMode === "daily" ? (
+        <div className="flex gap-5 items-stretch relative">
+          {/* ── Bottle ── */}
+          <div className="flex-shrink-0 relative" style={{ width: 90 }}>
+            <svg viewBox="0 0 140 330" className="w-full drop-shadow-2xl" style={{ filter: "drop-shadow(0 8px 24px rgba(56,189,248,0.25))" }}>
+              <defs>
+                {/* Bottle glass gradient */}
+                <linearGradient id="bottleGlass" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#e2f8ff" stopOpacity="0.35" />
+                  <stop offset="40%" stopColor="#bae6fd" stopOpacity="0.08" />
+                  <stop offset="100%" stopColor="#e2f8ff" stopOpacity="0.2" />
+                </linearGradient>
+                {/* Water gradient */}
+                <linearGradient id="waterFill" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor={waterColor1} stopOpacity="0.95" />
+                  <stop offset="100%" stopColor={waterColor2} stopOpacity="1" />
+                </linearGradient>
+                {/* Wave gradient darker */}
+                <linearGradient id="waveFill" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor={waterColor1} stopOpacity="0.7" />
+                  <stop offset="100%" stopColor={waterColor2} stopOpacity="0.9" />
+                </linearGradient>
+                {/* Clip to bottle shape */}
+                <clipPath id="bottleBodyClip">
+                  <rect x="10" y={bodyTop} width={BW + 20} height={BH + 2} rx="14" />
+                </clipPath>
+                <clipPath id="fullBottleClip">
+                  {/* neck */}
+                  <rect x={10 + (BW - NW) / 2 + 10} y={CAP} width={NW} height={NH + 4} rx="4" />
+                </clipPath>
+              </defs>
 
-                        <rect x="18" y="-8" width="44" height="10" rx="2" fill="#334155" />
-                        <rect x="20" y="0" width="40" height="2" fill="#475569" />
+              {/* ── Cap ── */}
+              <rect x={10 + (BW - NW) / 2 + 10} y={4} width={NW} height={CAP} rx="5"
+                fill="#334155" />
+              <rect x={10 + (BW - NW) / 2 + 10 + 4} y={8} width={NW - 8} height={3} rx="1.5"
+                fill="#475569" opacity="0.8" />
 
-                        {/* Pouring Stream */}
-                        {isPouring && (
-                            <g className="animate-stream">
-                                <path 
-                                    d="M 38,-10 L 42,-10 L 42,45" 
-                                    stroke="#60a5fa" 
-                                    strokeWidth="4" 
-                                    strokeLinecap="round"
-                                    className="opacity-80"
-                                />
-                                <circle cx="40" cy="55" r="3" fill="#60a5fa" className="opacity-80 animate-ping" />
-                            </g>
-                        )}
-                    </svg>
-                </div>
+              {/* ── Neck ── */}
+              <rect x={10 + (BW - NW) / 2 + 10} y={CAP} width={NW} height={NH + 2} rx="4"
+                fill="url(#bottleGlass)" stroke="rgba(186,230,253,0.4)" strokeWidth="1.5" />
 
-                {/* Controls - Only show in daily mode */}
-                {viewMode === 'daily' ? (
-                  <div className="flex-1 flex flex-col justify-end gap-3 pb-1">
-                      {/* Quick Presets */}
-                      <div className="grid grid-cols-3 gap-2">
-                          {[
-                              { val: 125, label: '125ml' },
-                              { val: 250, label: '250ml' },
-                              { val: 500, label: '500ml' },
-                          ].map((btn) => (
-                              <Button 
-                                  key={btn.val}
-                                  onClick={() => handleAdd(btn.val)}
-                                  className="h-9 text-xs font-semibold rounded-lg bg-white/5 border border-white/10 text-foreground hover:bg-blue-500/20 hover:border-blue-500/30 hover:text-blue-400 transition-all"
-                              >
-                                  +{btn.val}
-                              </Button>
-                          ))}
-                      </div>
+              {/* ── Body (glass shell) ── */}
+              <rect x="10" y={bodyTop} width={BW + 20} height={BH} rx="14"
+                fill="url(#bottleGlass)" stroke="rgba(186,230,253,0.35)" strokeWidth="1.5" />
 
-                      {/* Custom Input */}
-                      <div className="flex gap-2 h-9">
-                          <Input 
-                              type="number" 
-                              placeholder="Custom (ml)" 
-                              value={customAmount}
-                              onChange={(e) => setCustomAmount(e.target.value)}
-                              className="bg-background/50 border-border text-xs h-full focus-visible:ring-blue-500/50 placeholder:text-muted-foreground/50"
-                          />
-                          <Button 
-                              onClick={handleCustomAdd}
-                              className="h-full bg-blue-600 hover:bg-blue-500 text-white rounded-lg px-3 shadow-md shadow-blue-500/20"
-                          >
-                              <Plus className="w-4 h-4"/>
-                          </Button>
-                      </div>
-                  </div>
-                ) : (
-                  /* Weekly View - Show daily breakdown */
-                  <div className="flex-1 flex flex-col justify-end gap-2 pb-1">
-                    <div className="grid grid-cols-7 gap-1">
-                      {weeklyData.map((day, index) => {
-                        const dayPct = Math.min((day.amount / safeTarget) * 100, 100);
-                        return (
-                          <div key={day.date} className="text-center">
-                            <div className="text-[8px] text-muted-foreground mb-1 uppercase">
-                              {day.dayName}
-                            </div>
-                            <div className="h-12 w-full bg-muted/30 rounded-sm relative overflow-hidden">
-                              <div 
-                                className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-blue-600 to-blue-400 transition-all duration-500"
-                                style={{ height: `${dayPct}%` }}
-                              />
-                            </div>
-                            <div className="text-[8px] text-muted-foreground mt-1 font-mono">
-                              {Math.round(day.amount / 1000 * 10) / 10}L
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+              {/* ── Water fill ── */}
+              <g clipPath="url(#bottleBodyClip)">
+                {/* Static fill */}
+                <rect x="10" y={fillY} width={BW + 20} height={bodyBottom - fillY + 2}
+                  fill="url(#waterFill)"
+                  style={{ transition: "y 1.2s cubic-bezier(0.4,0,0.2,1), height 1.2s cubic-bezier(0.4,0,0.2,1)" }}
+                />
+                {/* Animated wave surface */}
+                {animPct > 1 && (
+                  <g style={{ transform: `translateY(${fillY}px)` }}>
+                    <path
+                      d={getWavePath(waveOffset, 70, 4)}
+                      fill="url(#waveFill)"
+                      style={{ transform: `translateX(${-waveOffset * 0.5}px)` }}
+                    />
+                  </g>
                 )}
+                {/* Bubble 1 */}
+                {animPct > 10 && (
+                  <circle cx="30" cy={bodyBottom - animPct / 100 * BH * 0.4} r="2.5"
+                    fill="white" opacity="0.25" className="animate-bounce" style={{ animationDuration: "2.4s" }} />
+                )}
+                {/* Bubble 2 */}
+                {animPct > 25 && (
+                  <circle cx="90" cy={bodyBottom - animPct / 100 * BH * 0.6} r="1.8"
+                    fill="white" opacity="0.2" className="animate-bounce" style={{ animationDuration: "3.1s", animationDelay: "0.7s" }} />
+                )}
+                {/* Surface shimmer */}
+                <rect x="10" y={fillY - 1} width={BW + 20} height="2"
+                  fill="white" opacity="0.18"
+                  style={{ transition: "y 1.2s cubic-bezier(0.4,0,0.2,1)" }}
+                />
+              </g>
+
+              {/* ── Tick marks ── */}
+              {[25, 50, 75].map((tick) => {
+                const tickY = bodyBottom - (tick / 100) * BH
+                return (
+                  <g key={tick}>
+                    <line x1="10" y1={tickY} x2="22" y2={tickY} stroke="rgba(186,230,253,0.3)" strokeWidth="1" />
+                    <line x1={BW + 18} y1={tickY} x2={BW + 30} y2={tickY} stroke="rgba(186,230,253,0.3)" strokeWidth="1" />
+                    <text x="0" y={tickY + 3} fill="rgba(148,163,184,0.5)" fontSize="6" textAnchor="middle">{tick}%</text>
+                  </g>
+                )
+              })}
+
+              {/* ── Highlight on glass ── */}
+              <rect x="15" y={bodyTop + 8} width="8" height={BH - 16} rx="4"
+                fill="white" opacity="0.08" />
+            </svg>
+
+            {/* Ripples on bottle */}
+            {ripples.map((r) => (
+              <span key={r.id}
+                className="absolute rounded-full border-2 border-cyan-400/50 animate-ping pointer-events-none"
+                style={{ width: 40, height: 40, left: r.x - 20, top: r.y - 20, animationDuration: "0.7s" }}
+              />
+            ))}
+          </div>
+
+          {/* ── Right side ── */}
+          <div className="flex-1 flex flex-col gap-3 justify-between">
+            {/* Stats */}
+            <div className="space-y-1">
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-black text-cyan-500 tabular-nums leading-none">{displayCurrent}</span>
+                <span className="text-sm text-muted-foreground">ml</span>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                of <span className="font-semibold text-foreground">{displayTarget}ml</span> goal
+              </div>
+              {/* Progress bar */}
+              <div className="h-1.5 w-full rounded-full bg-muted/30 overflow-hidden mt-2">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-1000"
+                  style={{ width: `${animPct}%`, boxShadow: animPct > 0 ? "0 0 8px rgba(56,189,248,0.5)" : "none" }}
+                />
+              </div>
             </div>
-        </Card>
-    )
+
+            {/* Quick presets */}
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                { val: 125, label: "125" },
+                { val: 250, label: "250" },
+                { val: 500, label: "500" },
+              ].map((btn) => (
+                <button
+                  key={btn.val}
+                  onClick={(e) => handleAdd(btn.val, e)}
+                  className={cn(
+                    "h-9 text-xs font-semibold rounded-xl border transition-all duration-200",
+                    "bg-cyan-500/5 border-cyan-500/20 text-cyan-600 dark:text-cyan-400",
+                    "hover:bg-cyan-500/15 hover:border-cyan-500/40 hover:scale-105 active:scale-95"
+                  )}
+                >
+                  +{btn.label}ml
+                </button>
+              ))}
+            </div>
+
+            {/* Custom input */}
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                placeholder="Custom ml"
+                value={customAmount}
+                onChange={(e) => setCustomAmount(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCustomAdd()}
+                className="h-9 text-xs bg-muted/30 border-border/50 focus-visible:ring-cyan-500/30 placeholder:text-muted-foreground/40"
+              />
+              <Button
+                onClick={handleCustomAdd}
+                className="h-9 w-9 p-0 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white border-0 shadow-lg shadow-cyan-500/25 flex-shrink-0"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Weekly hydration breakdown */
+        <div className="flex flex-col gap-3 relative">
+          {/* Weekly total */}
+          <div className="flex items-center justify-between p-3 rounded-2xl bg-cyan-500/8 border border-cyan-500/15">
+            <div>
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Weekly Total</p>
+              <p className="text-xl font-black text-cyan-500 tabular-nums leading-none mt-0.5">
+                {(weeklyTotal / 1000).toFixed(1)}<span className="text-xs font-normal text-muted-foreground ml-1">L</span>
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] text-muted-foreground">Target</p>
+              <p className="text-sm font-bold text-foreground tabular-nums">{(safeTarget * 7 / 1000).toFixed(1)}L</p>
+            </div>
+          </div>
+
+          {/* Daily bars */}
+          <div className="grid grid-cols-7 gap-1">
+            {weeklyData.map((day) => {
+              const dayPct = Math.min((day.amount / safeTarget) * 100, 100)
+              const isGood = dayPct >= 80
+              return (
+                <div key={day.date} className="flex flex-col items-center gap-1">
+                  <div className="text-[9px] text-muted-foreground uppercase font-medium">{day.dayName.slice(0, 1)}</div>
+                  <div className="relative h-16 w-full rounded-lg bg-muted/20 overflow-hidden">
+                    <div
+                      className={cn(
+                        "absolute bottom-0 left-0 right-0 rounded-lg transition-all duration-700",
+                        isGood ? "bg-gradient-to-t from-cyan-600 to-cyan-400" : "bg-gradient-to-t from-blue-700 to-blue-500"
+                      )}
+                      style={{ height: `${dayPct}%` }}
+                    />
+                  </div>
+                  <div className="text-[9px] text-muted-foreground tabular-nums">
+                    {(day.amount / 1000).toFixed(1)}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </Card>
+  )
 }

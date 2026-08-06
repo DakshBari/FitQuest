@@ -1,14 +1,10 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import maplibregl from "maplibre-gl"
-import "maplibre-gl/dist/maplibre-gl.css"
+import { useEffect, useRef } from "react"
 import { cn } from "@/lib/utils"
-
-// Types
-import type { Map, LngLat, GeoJSONSource } from "maplibre-gl"
-
 import type { RouteOption } from "@/services/routingService"
+
+import "leaflet/dist/leaflet.css"
 
 interface RoutePoint {
   lat: number
@@ -28,383 +24,191 @@ interface MapLibreMapProps {
   onRouteClick?: (routeId: string) => void
 }
 
-export function MapLibreMap({ 
-  userCoordinates, 
-  capturedAreas, 
-  plannedRoute = [], 
+export function MapLibreMap({
+  userCoordinates,
+  capturedAreas,
+  plannedRoute = [],
   routeOptions = [],
-  selectedRouteId = '',
-  routePoints = [], 
+  selectedRouteId = "",
+  routePoints = [],
   initialCenter,
   onMapClick,
-  onRouteClick
+  onRouteClick,
 }: MapLibreMapProps) {
-  const mapContainer = useRef<HTMLDivElement>(null)
-  const map = useRef<Map | null>(null)
-  const [isLoaded, setIsLoaded] = useState(false)
+  const containerRef   = useRef<HTMLDivElement>(null)
+  const mapRef         = useRef<any>(null)
+  const LRef           = useRef<any>(null)
 
+  // ── Always-fresh callback refs (no stale closures) ──────
+  const onMapClickRef  = useRef(onMapClick)
+  const onRouteClickRef = useRef(onRouteClick)
+  useEffect(() => { onMapClickRef.current  = onMapClick  }, [onMapClick])
+  useEffect(() => { onRouteClickRef.current = onRouteClick }, [onRouteClick])
+
+  // Layer refs
+  const userPolyRef  = useRef<any>(null)
+  const userDotRef   = useRef<any>(null)
+  const capturedRef  = useRef<any>(null)
+  const plannedRef   = useRef<any>(null)
+  const routeOptRefs = useRef<any[]>([])
+  const routeMarkers = useRef<any[]>([])
+  const routeLabels  = useRef<any[]>([])
+
+  // ── Init map (once, client-side only) ───────────────────
   useEffect(() => {
-    if (!mapContainer.current) return
+    if (typeof window === "undefined" || mapRef.current || !containerRef.current) return
 
-    // Determine initial center - use user location if available, otherwise default
-    const center: [number, number] = initialCenter || [-74.006, 40.7128]
+    import("leaflet").then((mod) => {
+      const L = mod.default ?? mod
+      LRef.current = L
+      if (!containerRef.current || mapRef.current) return
 
-    // Initialize MapLibre Map with OpenStreetMap tiles
-    const mapStyle: maplibregl.StyleSpecification = {
-      version: 8 as const,
-      sources: {
-        "osm": {
-          type: "raster",
-          tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-          tileSize: 256,
-          attribution: "© OpenStreetMap contributors"
+      // Fix broken default icons in bundlers
+      delete (L.Icon.Default.prototype as any)._getIconUrl
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+        iconUrl:       "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+        shadowUrl:     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+      })
+
+      const center: [number, number] = initialCenter
+        ? [initialCenter[1], initialCenter[0]]
+        : [40.7128, -74.006]
+
+      const map = L.map(containerRef.current, {
+        center, zoom: 13,
+        zoomControl: true,
+        attributionControl: true,
+      })
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "© <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors",
+      }).addTo(map)
+
+      mapRef.current = map
+
+      // Click handler reads from ref → always gets the latest prop value
+      map.on("click", (e: any) => {
+        if (onMapClickRef.current) {
+          onMapClickRef.current(e.latlng.lat, e.latlng.lng)
         }
-      },
-      layers: [
-        {
-          id: "osm-layer",
-          type: "raster",
-          source: "osm",
-          minzoom: 0,
-          maxzoom: 19
-        }
-      ]
-    }
+      })
 
-    const initializeMap = new maplibregl.Map({
-      container: mapContainer.current,
-      style: mapStyle,
-      center: center,
-      zoom: 13,
-      pitch: 0
-    })
-
-    map.current = initializeMap
-
-    initializeMap.on("load", () => {
-        setIsLoaded(true)
-        initializeMap.resize()
-
-        // Add Data Sources
-        initializeMap.addSource("route", {
-            type: "geojson",
-            data: {
-                type: "Feature",
-                properties: {},
-                geometry: { type: "LineString", coordinates: userCoordinates }
-            }
-        })
-
-        // Route options source (for multiple route alternatives)
-        initializeMap.addSource("route-options", {
-            type: "geojson",
-            data: {
-                type: "FeatureCollection",
-                features: routeOptions.map(route => ({
-                    type: "Feature",
-                    geometry: route.geometry,
-                    properties: { 
-                      routeId: route.id,
-                      name: route.name,
-                      selected: route.id === selectedRouteId
-                    }
-                }))
-            }
-        })
-
-        // Selected route source (highlighted route)
-        initializeMap.addSource("selected-route", {
-            type: "geojson",
-            data: {
-                type: "Feature",
-                properties: {},
-                geometry: { type: "LineString", coordinates: plannedRoute }
-            }
-        })
-
-        initializeMap.addSource("route-points", {
-            type: "geojson",
-            data: {
-                type: "FeatureCollection",
-                features: routePoints.map((point, index) => ({
-                    type: "Feature",
-                    geometry: { type: "Point", coordinates: [point.lng, point.lat] },
-                    properties: { name: point.name || `Point ${index + 1}`, index }
-                }))
-            }
-        })
-
-        initializeMap.addSource("user-marker", {
-            type: "geojson",
-            data: {
-                type: "Feature",
-                properties: {},
-                geometry: { type: "Point", coordinates: userCoordinates[userCoordinates.length - 1] || [0, 0] }
-            }
-        })
-
-        initializeMap.addSource("captured-territory", {
-            type: "geojson",
-            data: capturedAreas
-        })
-
-        // Add Layers
-        
-        // Territory (Captured Areas)
-        initializeMap.addLayer({
-            id: "captured-layer",
-            type: "fill",
-            source: "captured-territory",
-            layout: {},
-            paint: {
-                "fill-color": "#10b981",
-                "fill-opacity": 0.3,
-                "fill-outline-color": "#34d399"
-            }
-        })
-
-        // Route options - Semi-transparent lines
-        initializeMap.addLayer({
-            id: "route-options-layer",
-            type: "line",
-            source: "route-options",
-            layout: { "line-join": "round", "line-cap": "round" },
-            paint: {
-                "line-color": "#94a3b8",
-                "line-width": 2,
-                "line-opacity": 0.6,
-                "line-dasharray": [3, 3]
-            }
-        })
-
-        // Selected route - Highlighted line
-        initializeMap.addLayer({
-            id: "selected-route-layer",
-            type: "line",
-            source: "selected-route",
-            layout: { "line-join": "round", "line-cap": "round" },
-            paint: {
-                "line-color": "#8b5cf6",
-                "line-width": 4,
-                "line-opacity": 0.8
-            }
-        })
-
-        // Route Points - Different colors for start and end
-        initializeMap.addLayer({
-            id: "route-points-layer",
-            type: "circle",
-            source: "route-points",
-            paint: {
-                "circle-radius": 10,
-                "circle-color": [
-                    "case",
-                    ["==", ["get", "name"], "Start"], "#10b981", // Green for start
-                    ["==", ["get", "name"], "End"], "#ef4444",   // Red for end
-                    "#8b5cf6" // Default purple
-                ],
-                "circle-stroke-width": 3,
-                "circle-stroke-color": "#ffffff",
-                "circle-opacity": 0.9
-            }
-        })
-
-        // Route Point Labels
-        initializeMap.addLayer({
-            id: "route-points-labels",
-            type: "symbol",
-            source: "route-points",
-            layout: {
-                "text-field": ["get", "name"],
-                "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-                "text-size": 12,
-                "text-offset": [0, -2],
-                "text-anchor": "bottom"
-            },
-            paint: {
-                "text-color": "#ffffff",
-                "text-halo-color": "#000000",
-                "text-halo-width": 1
-            }
-        })
-
-        // User Route - Solid cyan line
-        initializeMap.addLayer({
-            id: "route-layer",
-            type: "line",
-            source: "route",
-            layout: { "line-join": "round", "line-cap": "round" },
-            paint: {
-                "line-color": "#06b6d4",
-                "line-width": 4,
-                "line-opacity": 0.8
-            }
-        })
-
-        // User Location - Pulsing dot
-        initializeMap.addLayer({
-            id: "user-marker-layer",
-            type: "circle",
-            source: "user-marker",
-            paint: {
-                "circle-radius": 6,
-                "circle-color": "#ffffff",
-                "circle-stroke-width": 3,
-                "circle-stroke-color": "#06b6d4"
-            }
-        })
-
-        // Add click handlers after layers are created
-        if (onMapClick) {
-          initializeMap.on('click', (e) => {
-            onMapClick(e.lngLat.lat, e.lngLat.lng)
-          })
-        }
-
-        // Route selection click handler
-        if (onRouteClick) {
-          initializeMap.on('click', 'route-options-layer', (e) => {
-            e.originalEvent.stopPropagation() // Prevent map click
-            if (e.features && e.features[0]) {
-              const routeId = e.features[0].properties?.routeId
-              if (routeId) {
-                onRouteClick(routeId)
-              }
-            }
-          })
-          
-          // Change cursor on hover
-          initializeMap.on('mouseenter', 'route-options-layer', () => {
-            initializeMap.getCanvas().style.cursor = 'pointer'
-          })
-          
-          initializeMap.on('mouseleave', 'route-options-layer', () => {
-            initializeMap.getCanvas().style.cursor = ''
-          })
-        }
+      renderLayers(L, map)
     })
 
     return () => {
-        map.current?.remove()
+      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null }
     }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Re-center when location changes ─────────────────────
+  useEffect(() => {
+    if (!mapRef.current || !initialCenter || !LRef.current) return
+    mapRef.current.setView([initialCenter[1], initialCenter[0]], 13)
   }, [initialCenter])
 
-  // Center map on user location when it becomes available
+  // ── Re-render layers on prop change ─────────────────────
   useEffect(() => {
-    if (!map.current || !isLoaded || !initialCenter) return
-    
-    map.current.easeTo({ 
-      center: initialCenter,
-      zoom: 13,
-      duration: 1000
+    if (!mapRef.current || !LRef.current) return
+    renderLayers(LRef.current, mapRef.current)
+  }, [userCoordinates, capturedAreas, plannedRoute, routeOptions, selectedRouteId, routePoints])
+
+  function renderLayers(L: any, map: any) {
+    // ── User route ────────────────────────────────────────
+    if (userPolyRef.current) { map.removeLayer(userPolyRef.current); userPolyRef.current = null }
+    if (userCoordinates.length > 1) {
+      const latlngs = userCoordinates.map(c => [c[1], c[0]])
+      userPolyRef.current = L.polyline(latlngs, { color: "#8b5cf6", weight: 4, opacity: 0.85 }).addTo(map)
+    }
+
+    // ── User dot ─────────────────────────────────────────
+    if (userDotRef.current) { map.removeLayer(userDotRef.current); userDotRef.current = null }
+    const last = userCoordinates.length > 0 ? userCoordinates[userCoordinates.length - 1] : null
+    if (last) {
+      userDotRef.current = L.circleMarker([last[1], last[0]], {
+        radius: 8, fillColor: "#ffffff", color: "#8b5cf6", weight: 3, fillOpacity: 1,
+      }).addTo(map)
+      map.panTo([last[1], last[0]])
+    }
+
+    // ── Captured territories ──────────────────────────────
+    if (capturedRef.current) { map.removeLayer(capturedRef.current); capturedRef.current = null }
+    if (capturedAreas.features.length > 0) {
+      capturedRef.current = L.geoJSON(capturedAreas, {
+        style: () => ({ fillColor: "#10b981", fillOpacity: 0.28, color: "#34d399", weight: 1.5 }),
+      }).addTo(map)
+    }
+
+    // ── Route options ─────────────────────────────────────
+    routeOptRefs.current.forEach(p => map.removeLayer(p))
+    routeOptRefs.current = []
+    routeOptions.forEach(route => {
+      const isSelected = route.id === selectedRouteId
+      const coords = (route.geometry.coordinates as number[][]).map(c => [c[1], c[0]])
+      const poly = L.polyline(coords, {
+        color:     isSelected ? "#8b5cf6" : "#94a3b8",
+        weight:    isSelected ? 4 : 2,
+        opacity:   isSelected ? 0.9 : 0.55,
+        dashArray: isSelected ? undefined : "6 6",
+      }).addTo(map)
+
+      poly.on("click", (e: any) => {
+        e.originalEvent.stopPropagation()
+        if (onRouteClickRef.current) onRouteClickRef.current(route.id)
+      })
+      poly.on("mouseover", () => { map.getContainer().style.cursor = "pointer" })
+      poly.on("mouseout",  () => { map.getContainer().style.cursor = "" })
+      routeOptRefs.current.push(poly)
     })
-  }, [initialCenter, isLoaded])
 
-  // Update Route dynamically
-  useEffect(() => {
-    if (!map.current || !isLoaded) return
-
-    const routeData: GeoJSON.LineString = {
-        type: "LineString",
-        coordinates: userCoordinates.length > 0 ? userCoordinates : []
-    }
-    
-    const lastCoord = userCoordinates.length > 0 
-      ? userCoordinates[userCoordinates.length - 1] 
-      : (initialCenter || [0, 0])
-    
-    const markerData: GeoJSON.Point = {
-        type: "Point",
-        coordinates: lastCoord
+    // ── Planned route ─────────────────────────────────────
+    if (plannedRef.current) { map.removeLayer(plannedRef.current); plannedRef.current = null }
+    if (plannedRoute.length > 1) {
+      const latlngs = plannedRoute.map(c => [c[1], c[0]])
+      plannedRef.current = L.polyline(latlngs, { color: "#8b5cf6", weight: 4, opacity: 0.85 }).addTo(map)
     }
 
-    const routeSource = map.current.getSource("route") as GeoJSONSource
-    const markerSource = map.current.getSource("user-marker") as GeoJSONSource
-    
-    if (routeSource) routeSource.setData(routeData)
-    if (markerSource) markerSource.setData(markerData)
+    // ── Route point markers + labels ──────────────────────
+    routeMarkers.current.forEach(m => map.removeLayer(m))
+    routeLabels.current.forEach(m => map.removeLayer(m))
+    routeMarkers.current = []
+    routeLabels.current = []
 
-    // Auto pan to user if tracking
-    if (userCoordinates.length > 0) {
-        const coord = userCoordinates[userCoordinates.length - 1]
-        if (coord && coord.length === 2) {
-            map.current.easeTo({ center: coord as [number, number] })
-        }
-    }
-  }, [userCoordinates, isLoaded, initialCenter])
+    routePoints.forEach((pt, i) => {
+      const color = pt.name === "Start" ? "#10b981" : pt.name === "End" ? "#ef4444" : "#8b5cf6"
+      const dot = L.circleMarker([pt.lat, pt.lng], {
+        radius: 10, fillColor: color, color: "#ffffff", weight: 3, fillOpacity: 0.9,
+      }).addTo(map)
+      routeMarkers.current.push(dot)
 
-  // Update route options
-  useEffect(() => {
-    if (!map.current || !isLoaded) return
-
-    const routeOptionsData: GeoJSON.FeatureCollection = {
-        type: "FeatureCollection",
-        features: routeOptions.map(route => ({
-            type: "Feature",
-            geometry: route.geometry,
-            properties: { 
-              routeId: route.id,
-              name: route.name,
-              selected: route.id === selectedRouteId
-            }
-        }))
-    }
-
-    const routeOptionsSource = map.current.getSource("route-options") as GeoJSONSource
-    if (routeOptionsSource) routeOptionsSource.setData(routeOptionsData)
-  }, [routeOptions, selectedRouteId, isLoaded])
-
-  // Update selected route
-  useEffect(() => {
-    if (!map.current || !isLoaded) return
-
-    const selectedRouteData: GeoJSON.LineString = {
-        type: "LineString",
-        coordinates: plannedRoute
-    }
-
-    const selectedRouteSource = map.current.getSource("selected-route") as GeoJSONSource
-    if (selectedRouteSource) selectedRouteSource.setData(selectedRouteData)
-  }, [plannedRoute, isLoaded])
-
-  // Update route points
-  useEffect(() => {
-    if (!map.current || !isLoaded) return
-
-    const routePointsData: GeoJSON.FeatureCollection = {
-        type: "FeatureCollection",
-        features: routePoints.map((point, index) => ({
-            type: "Feature",
-            geometry: { type: "Point", coordinates: [point.lng, point.lat] },
-            properties: { name: point.name || `Point ${index + 1}`, index }
-        }))
-    }
-
-    const routePointsSource = map.current.getSource("route-points") as GeoJSONSource
-    if (routePointsSource) routePointsSource.setData(routePointsData)
-  }, [routePoints, isLoaded])
-
-  // Update captured areas
-  useEffect(() => {
-    if (!map.current || !isLoaded) return
-
-    const capturedSource = map.current.getSource("captured-territory") as GeoJSONSource
-    if (capturedSource) capturedSource.setData(capturedAreas)
-  }, [capturedAreas, isLoaded])
+      const label = L.marker([pt.lat, pt.lng], {
+        icon: L.divIcon({
+          className: "",
+          html: `<div style="
+            position:relative;background:${color};color:#fff;
+            font-size:10px;font-weight:700;padding:2px 7px;
+            border-radius:5px;white-space:nowrap;
+            transform:translate(-50%,-220%);
+            box-shadow:0 2px 8px rgba(0,0,0,0.4);
+            pointer-events:none;
+          ">${pt.name ?? `Point ${i + 1}`}</div>`,
+          iconSize: [0, 0], iconAnchor: [0, 0],
+        }),
+        interactive: false, zIndexOffset: 1000,
+      }).addTo(map)
+      routeLabels.current.push(label)
+    })
+  }
 
   return (
-    <div 
-      ref={mapContainer} 
+    <div
+      ref={containerRef}
       className={cn(
         "absolute inset-0 w-full h-full rounded-xl overflow-hidden bg-muted/20",
         onMapClick && "cursor-crosshair"
       )}
-      style={{
-        cursor: onMapClick ? (
-          // Show different cursors based on point selection mode
-          'crosshair'
-        ) : 'default'
-      }}
     />
   )
 }

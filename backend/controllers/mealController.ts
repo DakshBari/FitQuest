@@ -355,6 +355,7 @@ export const addFavoriteToLog = async (req: AuthRequest, res: Response) => {
       },
       baseQuantity: favoriteMeal.baseQuantity,
       quantity: quantity || favoriteMeal.quantity,
+      quantityType: favoriteMeal.quantityType || 'weight',
       isFavorite: false // New log entry is not a favorite by default
     });
 
@@ -432,3 +433,259 @@ export const getDailyEntries = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ status: 'error', message: 'Server error' });
   }
 };
+
+// @desc    Get AI-powered nutrition suggestions
+export const getAISuggestions = async (req: AuthRequest, res: Response) => {
+  try {
+    const { type } = req.query; // 'today', 'weekly', or 'overall'
+    const { mealAIService } = await import('../services/mealAIService');
+    
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ status: 'error', message: 'User not found' });
+    }
+
+    let suggestions: any = {};
+
+    if (type === 'today') {
+      // Get today's meals and stats
+      const today = new Date();
+      const { start, end } = getDayRange(today);
+      
+      const meals = await Meal.find({
+        userId: req.user._id,
+        date: { $gte: start, $lte: end }
+      });
+
+      const totalCalories = meals.reduce((sum, m) => sum + m.calories, 0);
+      const totalProtein = meals.reduce((sum, m) => sum + m.protein, 0);
+      const totalCarbs = meals.reduce((sum, m) => sum + m.carbs, 0);
+      const totalFats = meals.reduce((sum, m) => sum + m.fats, 0);
+
+      const goals = user.goals || { calories: 2000, protein: 150, carbs: 200, fats: 65 };
+      
+      const remainingCalories = goals.calories - totalCalories;
+      const remainingProtein = goals.protein - totalProtein;
+      const remainingCarbs = goals.carbs - totalCarbs;
+      const remainingFats = goals.fats - totalFats;
+
+      // Generate AI suggestions for today
+      const foodPref = user.profile?.foodPreference || 'non-veg';
+      const foodPrefText = foodPref === 'non-veg' ? 'Non-Vegetarian (can include meat, fish, eggs, dairy)' :
+                           foodPref === 'veg' ? 'Vegetarian (no meat/fish, but includes eggs and dairy)' :
+                           foodPref === 'vegan' ? 'Vegan (no animal products at all)' :
+                           'Jain (no root vegetables, onion, garlic, or animal products)';
+      
+      const prompt = `You are a nutrition expert AI. Analyze today's nutrition intake and provide guidance.
+
+User Profile:
+- Weight: ${user.profile?.weight || 'Not specified'}kg
+- Height: ${user.profile?.height || 'Not specified'}cm
+- Goal: ${user.profile?.goal || 'general fitness'}
+- Food Preference: ${foodPrefText}
+
+Today's Intake:
+- Calories: ${totalCalories}/${goals.calories} (${remainingCalories} remaining)
+- Protein: ${totalProtein}g/${goals.protein}g (${remainingProtein}g remaining)
+- Carbs: ${totalCarbs}g/${goals.carbs}g (${remainingCarbs}g remaining)
+- Fats: ${totalFats}g/${goals.fats}g (${remainingFats}g remaining)
+
+Meals logged today: ${meals.length}
+
+IMPORTANT: All meal suggestions MUST strictly follow the ${foodPref} diet. Do not suggest any foods that violate this preference.
+
+Provide:
+1. A brief summary (2-3 sentences) of today's nutrition status
+2. 3-4 specific recommendations for what to eat for the rest of the day (following ${foodPref} diet)
+3. 2-3 meal suggestions with approximate macros (strictly ${foodPref} options only)
+
+Format your response as:
+SUMMARY: [your summary]
+RECOMMENDATIONS:
+- [recommendation 1]
+- [recommendation 2]
+- [recommendation 3]
+MEALS:
+[Meal Name]|[Description]|[Calories]|[Protein]|[Carbs]|[Fats]
+[Meal Name]|[Description]|[Calories]|[Protein]|[Carbs]|[Fats]`;
+
+      const aiResponse = await mealAIService.model.generateContent(prompt);
+      const responseText = aiResponse.response.text();
+      suggestions = parseAISuggestions(responseText);
+
+    } else if (type === 'weekly') {
+      // Get last 7 days of meals
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 6);
+      startDate.setHours(0, 0, 0, 0);
+
+      const meals = await Meal.find({
+        userId: req.user._id,
+        date: { $gte: startDate, $lte: endDate }
+      });
+
+      const totalCalories = meals.reduce((sum, m) => sum + m.calories, 0);
+      const totalProtein = meals.reduce((sum, m) => sum + m.protein, 0);
+      const totalCarbs = meals.reduce((sum, m) => sum + m.carbs, 0);
+      const totalFats = meals.reduce((sum, m) => sum + m.fats, 0);
+      const avgCalories = Math.round(totalCalories / 7);
+      const avgProtein = Math.round(totalProtein / 7);
+      const avgCarbs = Math.round(totalCarbs / 7);
+      const avgFats = Math.round(totalFats / 7);
+
+      const goals = user.goals || { calories: 2000, protein: 150, carbs: 200, fats: 65 };
+
+      const prompt = `You are a nutrition expert AI. Analyze the last 7 days of eating patterns and provide insights.
+
+User Profile:
+- Weight: ${user.profile?.weight || 'Not specified'}kg
+- Height: ${user.profile?.height || 'Not specified'}cm
+- Goal: ${user.profile?.goal || 'general fitness'}
+
+Weekly Averages (Last 7 Days):
+- Daily Calories: ${avgCalories} (Target: ${goals.calories})
+- Daily Protein: ${avgProtein}g (Target: ${goals.protein}g)
+- Daily Carbs: ${avgCarbs}g (Target: ${goals.carbs}g)
+- Daily Fats: ${avgFats}g (Target: ${goals.fats}g)
+
+Total meals logged: ${meals.length}
+
+Provide:
+1. A summary (3-4 sentences) of the weekly eating patterns
+2. 4-5 specific improvement suggestions for next week
+3. Identify any concerning patterns or deficiencies
+
+Format your response as:
+SUMMARY: [your summary]
+RECOMMENDATIONS:
+- [recommendation 1]
+- [recommendation 2]
+- [recommendation 3]
+- [recommendation 4]`;
+
+      const aiResponse = await mealAIService.model.generateContent(prompt);
+      const responseText = aiResponse.response.text();
+      suggestions = parseAISuggestions(responseText);
+
+    } else if (type === 'overall') {
+      // Get last 30 days of meals
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 29);
+      startDate.setHours(0, 0, 0, 0);
+
+      const meals = await Meal.find({
+        userId: req.user._id,
+        date: { $gte: startDate, $lte: endDate }
+      });
+
+      const totalCalories = meals.reduce((sum, m) => sum + m.calories, 0);
+      const totalProtein = meals.reduce((sum, m) => sum + m.protein, 0);
+      const totalCarbs = meals.reduce((sum, m) => sum + m.carbs, 0);
+      const totalFats = meals.reduce((sum, m) => sum + m.fats, 0);
+      const avgCalories = Math.round(totalCalories / 30);
+      const avgProtein = Math.round(totalProtein / 30);
+      const avgCarbs = Math.round(totalCarbs / 30);
+      const avgFats = Math.round(totalFats / 30);
+
+      const goals = user.goals || { calories: 2000, protein: 150, carbs: 200, fats: 65 };
+
+      const prompt = `You are a nutrition expert AI. Analyze the overall eating habits over the last 30 days and provide comprehensive insights.
+
+User Profile:
+- Weight: ${user.profile?.weight || 'Not specified'}kg
+- Height: ${user.profile?.height || 'Not specified'}cm
+- Goal: ${user.profile?.goal || 'general fitness'}
+
+Monthly Averages (Last 30 Days):
+- Daily Calories: ${avgCalories} (Target: ${goals.calories})
+- Daily Protein: ${avgProtein}g (Target: ${goals.protein}g)
+- Daily Carbs: ${avgCarbs}g (Target: ${goals.carbs}g)
+- Daily Fats: ${avgFats}g (Target: ${goals.fats}g)
+
+Total meals logged: ${meals.length}
+Days with meals: ${new Set(meals.map(m => m.date.toISOString().split('T')[0])).size}
+
+Provide:
+1. A comprehensive summary (4-5 sentences) of overall eating habits
+2. 5-6 actionable recommendations for long-term improvement
+3. Highlight strengths and areas needing attention
+
+Format your response as:
+SUMMARY: [your summary]
+RECOMMENDATIONS:
+- [recommendation 1]
+- [recommendation 2]
+- [recommendation 3]
+- [recommendation 4]
+- [recommendation 5]`;
+
+      const aiResponse = await mealAIService.model.generateContent(prompt);
+      const responseText = aiResponse.response.text();
+      suggestions = parseAISuggestions(responseText);
+    }
+
+    res.json({
+      status: 'success',
+      suggestions
+    });
+
+  } catch (error: any) {
+    console.error('AI Suggestions Error:', error);
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Failed to generate AI suggestions',
+      suggestions: {
+        error: 'AI service is currently unavailable. Please try again later.'
+      }
+    });
+  }
+};
+
+// Helper function to parse AI response
+function parseAISuggestions(responseText: string): any {
+  const result: any = {
+    summary: '',
+    recommendations: [],
+    mealSuggestions: []
+  };
+
+  // Extract summary
+  const summaryMatch = responseText.match(/SUMMARY:\s*(.+?)(?=RECOMMENDATIONS:|MEALS:|$)/s);
+  if (summaryMatch) {
+    result.summary = summaryMatch[1].trim();
+  }
+
+  // Extract recommendations
+  const recommendationsMatch = responseText.match(/RECOMMENDATIONS:\s*(.+?)(?=MEALS:|$)/s);
+  if (recommendationsMatch) {
+    const recommendations = recommendationsMatch[1]
+      .split('\n')
+      .filter(line => line.trim().startsWith('-'))
+      .map(line => line.replace(/^-\s*/, '').trim());
+    result.recommendations = recommendations;
+  }
+
+  // Extract meal suggestions
+  const mealsMatch = responseText.match(/MEALS:\s*(.+?)$/s);
+  if (mealsMatch) {
+    const mealLines = mealsMatch[1].split('\n').filter(line => line.includes('|'));
+    result.mealSuggestions = mealLines.map(line => {
+      const parts = line.split('|').map(p => p.trim());
+      if (parts.length >= 6) {
+        return {
+          name: parts[0],
+          description: parts[1],
+          calories: parseInt(parts[2]) || 0,
+          protein: parseInt(parts[3]) || 0,
+          carbs: parseInt(parts[4]) || 0,
+          fats: parseInt(parts[5]) || 0
+        };
+      }
+      return null;
+    }).filter(Boolean);
+  }
+
+  return result;
+}

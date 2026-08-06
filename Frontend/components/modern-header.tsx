@@ -81,7 +81,7 @@ export function ModernHeader() {
         </Button>
         
         <div className="flex items-center gap-3">
-          <h1 className="text-xl font-bold text-white font-orbitron tracking-tight">
+          <h1 className={`text-xl font-bold font-orbitron tracking-tight ${pathname === "/settings" || pathname === "/sanctuary" ? "text-[#7F22FE]" : "text-white"}`}>
             {currentPage}
           </h1>
           {pathname === "/dashboard" && (
@@ -184,14 +184,14 @@ export function ModernHeader() {
             <Button
               variant="ghost"
               size="icon"
-              className="btn-glass text-muted-foreground hover:text-white hover:bg-white/10 rounded-xl transition-all duration-200 group"
+              className={`btn-glass rounded-xl transition-all duration-200 group ${pathname === "/settings" || pathname === "/sanctuary" ? "text-[#7F22FE] bg-[#7F22FE]/10 border border-[#7F22FE]/30 hover:bg-[#7F22FE]/20 hover:text-[#7F22FE]" : "text-muted-foreground hover:text-white hover:bg-white/10"}`}
             >
               <Settings className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="glass-card border border-white/10 rounded-xl p-2 animate-scale-in" align="end">
             <DropdownMenuItem className="rounded-lg hover:bg-white/5 transition-colors">
-              <Settings className="h-4 w-4 mr-2" />
+              <Settings className={`h-4 w-4 mr-2 ${pathname === "/settings" || pathname === "/sanctuary" ? "text-[#7F22FE]" : ""}`} />
               Preferences
             </DropdownMenuItem>
             <DropdownMenuItem className="rounded-lg hover:bg-white/5 transition-colors">
@@ -218,14 +218,14 @@ export function ModernHeader() {
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="btn-glass flex items-center gap-2 px-3 py-2 text-muted-foreground hover:text-white hover:bg-white/10 rounded-xl transition-all duration-200 group"
+              className={`btn-glass flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-200 group ${pathname === "/settings" || pathname === "/sanctuary" ? "text-[#7F22FE] bg-[#7F22FE]/10 border border-[#7F22FE]/30 hover:bg-[#7F22FE]/20 hover:text-[#7F22FE]" : "text-muted-foreground hover:text-white hover:bg-white/10"}`}
             >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center glow-cyan group-hover:scale-110 transition-transform">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 ${pathname === "/settings" || pathname === "/sanctuary" ? "bg-[#7F22FE] shadow-lg shadow-[#7F22FE]/20" : "bg-gradient-to-br from-cyan-500 to-purple-600 glow-cyan"}`}>
                 <span className="text-white text-sm font-semibold font-orbitron">
                   {user.initials}
                 </span>
               </div>
-              <span className="hidden sm:block text-sm font-medium">{user.name.split(' ')[0]}</span>
+              <span className={`hidden sm:block text-sm font-medium ${pathname === "/settings" || pathname === "/sanctuary" ? "text-[#7F22FE]" : ""}`}>{user.name.split(' ')[0]}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="glass-card border border-white/10 rounded-xl p-2 animate-scale-in" align="end">
@@ -235,15 +235,15 @@ export function ModernHeader() {
               <p className="text-xs text-muted-foreground opacity-70">{user.email}</p>
             </div>
             <DropdownMenuItem className="rounded-lg hover:bg-white/5 transition-colors">
-              <User className="h-4 w-4 mr-2" />
+              <User className={`h-4 w-4 mr-2 ${pathname === "/settings" || pathname === "/sanctuary" ? "text-[#7F22FE]" : ""}`} />
               Profile
             </DropdownMenuItem>
             <DropdownMenuItem className="rounded-lg hover:bg-white/5 transition-colors">
-              <Heart className="h-4 w-4 mr-2" />
+              <Heart className={`h-4 w-4 mr-2 ${pathname === "/settings" || pathname === "/sanctuary" ? "text-[#7F22FE]" : ""}`} />
               Health Stats
             </DropdownMenuItem>
             <DropdownMenuItem className="rounded-lg hover:bg-white/5 transition-colors">
-              <Settings className="h-4 w-4 mr-2" />
+              <Settings className={`h-4 w-4 mr-2 ${pathname === "/settings" || pathname === "/sanctuary" ? "text-[#7F22FE]" : ""}`} />
               Account Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/10" />

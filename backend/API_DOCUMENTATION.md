@@ -425,3 +425,5 @@ All errors follow this format:
 
 4. **Streak System**: Streaks are tracked based on workout completion. The system checks for consecutive days of activity.
 
+
+

@@ -1,10 +1,13 @@
+// Load environment variables FIRST before any other imports
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env' });
+
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
-import dotenv from 'dotenv';
 import { errorHandler } from './middleware/errorHandler';
 import { authRoutes } from './routes/auth';
 import { workoutRoutes } from './routes/workouts';
@@ -17,7 +20,11 @@ import { userRoutes } from './routes/users';
 import { hydrationRoutes } from './routes/hydration';
 import worldMapRoutes from './routes/worldMap';
 
-dotenv.config();
+// Debug: Check if env vars are loaded
+console.log('Environment check:');
+console.log('- PORT:', process.env.PORT);
+console.log('- GEMINI_API_KEY exists:', !!process.env.GEMINI_API_KEY);
+console.log('- GEMINI_API_KEY value:', process.env.GEMINI_API_KEY?.substring(0, 10) + '...');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -68,4 +75,6 @@ mongoose.connect(MONGODB_URI)
   });
 
 export default app;
+
+
 

@@ -4,6 +4,7 @@ import { AppError } from '../middleware/errorHandler';
 import { protect, AuthRequest } from '../middleware/auth';
 import { motionDetectionService } from '../services/motionDetectionService';
 import { aiCoachService } from '../services/aiCoachService';
+import { mealAIService } from '../services/mealAIService';
 
 const router = express.Router();
 
@@ -45,6 +46,65 @@ router.post(
   }
 );
 
+// @route   POST /api/ai-coach/analyze-food
+// @desc    Analyze food nutrition using Gemini AI
+// @access  Private
+router.post(
+  '/analyze-food',
+  [
+    body('foodName').trim().notEmpty().withMessage('Food name is required'),
+    body('weight').isNumeric().withMessage('Weight must be a number'),
+    body('quantityType').optional().isIn(['weight', 'units']).withMessage('Quantity type must be weight or units')
+  ],
+  async (req: AuthRequest, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { foodName, weight, quantityType = 'weight' } = req.body;
+
+      console.log('Analyzing food:', foodName, weight, quantityType);
+
+      // Build description based on quantity type
+      const description = quantityType === 'units' 
+        ? `${weight} piece(s) of ${foodName}`
+        : `${weight}g of ${foodName}`;
+
+      // Call meal AI service for food analysis
+      const analysis = await mealAIService.analyzeMeal({
+        userId: req.user._id.toString(),
+        mealDescription: description
+      });
+
+      console.log('Analysis result:', analysis);
+
+      // Calculate nutrition based on quantity
+      // For weight: ratio based on 100g
+      // For units: AI already analyzed per piece, so multiply by count
+      const ratio = quantityType === 'units' ? Number(weight) : Number(weight) / 100;
+      
+      res.json({
+        status: 'success',
+        nutrition: {
+          calories: Math.round(analysis.calories * ratio),
+          protein: Math.round(analysis.protein * ratio),
+          carbs: Math.round(analysis.carbs * ratio),
+          fats: Math.round(analysis.fats * ratio),
+          confidence: analysis.confidence
+        }
+      });
+    } catch (error: any) {
+      console.error('Error analyzing food:', error);
+      res.status(500).json({
+        status: 'error',
+        message: error.message || 'Failed to analyze food'
+      });
+    }
+  }
+);
+
 // @route   POST /api/ai-coach/chat
 // @desc    Chat with AI coach
 // @access  Private
@@ -63,6 +123,8 @@ router.post(
 
       const { message, sessionId } = req.body;
 
+      console.log('Chat request:', { userId: req.user._id, message, sessionId });
+
       // Call AI coach service with Gemini integration
       const response = await aiCoachService.chat({
         userId: req.user._id.toString(),
@@ -70,12 +132,18 @@ router.post(
         sessionId
       });
 
+      console.log('Chat response received');
+
       res.json({
         status: 'success',
         data: response
       });
     } catch (error: any) {
-      next(error);
+      console.error('Error in chat route:', error);
+      res.status(500).json({
+        status: 'error',
+        message: error.message || 'Failed to process chat message'
+      });
     }
   }
 );
@@ -144,4 +212,6 @@ router.get('/recommendations', async (req: AuthRequest, res, next) => {
 });
 
 export { router as aiCoachRoutes };
+
+
 

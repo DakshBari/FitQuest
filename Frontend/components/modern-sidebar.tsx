@@ -2,17 +2,17 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { 
-  LayoutGrid, 
-  Apple, 
-  Swords, 
-  Map, 
-  Users, 
-  Settings, 
-  Brain, 
-  ChevronLeft, 
-  ChevronRight, 
-  Zap, 
+import {
+  LayoutGrid,
+  Apple,
+  Swords,
+  Map,
+  Users,
+  Settings,
+  Brain,
+  ChevronLeft,
+  ChevronRight,
+  Zap,
   Sparkles,
   Home,
   Activity
@@ -41,12 +41,12 @@ export function ModernSidebar() {
     <>
       {/* Backdrop for mobile */}
       {!collapsed && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden"
           onClick={() => setCollapsed(true)}
         />
       )}
-      
+
       {/* Sidebar */}
       <aside
         className={cn(
@@ -86,28 +86,43 @@ export function ModernSidebar() {
           {menuItems.map((item) => {
             const Icon = item.icon
             const isActive = pathname === item.href
+            const isPurpleHighlight = item.name === "Settings" || item.name === "Sanctuary"
             return (
               <Link key={item.name} href={item.href}>
                 <div
                   className={cn(
                     "flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden",
                     isActive
-                      ? "bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-white border border-cyan-500/30 glow-hover"
-                      : "text-muted-foreground hover:text-white hover:bg-white/5 hover:border-white/10 border border-transparent",
+                      ? isPurpleHighlight
+                        ? "bg-[#7F22FE]/20 text-white border border-[#7F22FE]/40 glow-purple"
+                        : "bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-white border border-cyan-500/30 glow-hover"
+                      : isPurpleHighlight
+                        ? "text-muted-foreground hover:text-white hover:bg-white/5 hover:border-white/10 border border-transparent"
+                        : "text-muted-foreground hover:text-white hover:bg-white/5 hover:border-white/10 border border-transparent",
                   )}
                 >
                   {isActive && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 animate-shimmer" />
+                    <div className={cn(
+                      "absolute inset-0 animate-shimmer",
+                      isPurpleHighlight
+                        ? "bg-gradient-to-r from-[#7F22FE]/10 to-purple-500/10"
+                        : "bg-gradient-to-r from-cyan-500/10 to-purple-500/10"
+                    )} />
                   )}
                   <Icon className={cn(
                     "h-5 w-5 flex-shrink-0 transition-colors relative z-10",
-                    isActive ? "text-cyan-400" : "group-hover:text-cyan-400"
+                    isPurpleHighlight
+                      ? isActive ? "text-[#7F22FE]" : "group-hover:text-[#7F22FE]"
+                      : isActive ? "text-cyan-400" : "group-hover:text-cyan-400"
                   )} />
                   {!collapsed && (
                     <span className="font-medium relative z-10">{item.name}</span>
                   )}
                   {isActive && !collapsed && (
-                    <div className="ml-auto w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                    <div className={cn(
+                      "ml-auto w-2 h-2 rounded-full animate-pulse",
+                      isPurpleHighlight ? "bg-[#7F22FE]" : "bg-cyan-400"
+                    )} />
                   )}
                 </div>
               </Link>

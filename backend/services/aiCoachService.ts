@@ -1,8 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { ChatSession, IChatSession, IMessage } from '../models/ChatSession';
-import { User } from '../models/User';
-import { Workout } from '../models/Workout';
-import { Meal } from '../models/Meal';
+import User from '../models/User';
+import Workout from '../models/Workout';
+import Meal from '../models/Meal';
 
 /**
  * AI Coach Service with Gemini Integration
@@ -37,17 +37,22 @@ class AICoachService {
   constructor() {
     const apiKey = process.env.GEMINI_API_KEY;
     
+    console.log('Initializing AI Coach Service...');
+    console.log('GEMINI_API_KEY exists:', !!apiKey);
+    console.log('GEMINI_API_KEY length:', apiKey?.length || 0);
+    console.log('GEMINI_API_KEY starts with:', apiKey?.substring(0, 4));
+    
     if (!apiKey) {
-      console.warn('⚠️  GEMINI_API_KEY not found. AI Coach will use fallback responses.');
+      console.warn('⚠️  GEMINI_API_KEY not found. AI Coach will not be available.');
       this.genAI = null;
       this.model = null;
       this.isGeminiAvailable = false;
     } else {
       try {
         this.genAI = new GoogleGenerativeAI(apiKey);
-        this.model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
+        this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
         this.isGeminiAvailable = true;
-        console.log('✅ Gemini AI initialized successfully');
+        console.log('✅ Gemini AI initialized successfully with gemini-2.5-flash');
       } catch (error) {
         console.error('❌ Failed to initialize Gemini AI:', error);
         this.genAI = null;
@@ -106,110 +111,150 @@ Recent Activity:`;
    * Generate AI coach system prompt
    */
   private getSystemPrompt(userContext: string): string {
-    return `You are "The Oracle," an advanced AI fitness coach for the FitQuest app. You are knowledgeable, supportive, and motivational. Your role is to provide personalized fitness guidance, workout recommendations, nutrition advice, and form corrections.
+    return `You are "The Oracle," an AI fitness coach for FitQuest. You are knowledgeable, supportive, and motivational.
 
 Key characteristics:
-- Speak like an experienced fitness coach who cares about the user's progress
-- Be encouraging but realistic about goals and expectations
-- Provide specific, actionable advice with detailed explanations
-- Consider the user's fitness level and goals in every response
-- Always prioritize safety and proper form
-- Use fitness terminology appropriately but explain complex concepts
-- Give comprehensive responses (3-5 paragraphs when appropriate)
-- Include practical tips, step-by-step instructions, and reasoning behind recommendations
-- Address both immediate concerns and long-term fitness goals
+- Speak like an experienced fitness coach
+- Be encouraging but realistic
+- Provide specific, actionable advice
+- Consider the user's fitness level and goals
+- Prioritize safety and proper form
+- Keep responses concise (2-3 paragraphs maximum)
+- Include practical tips and reasoning
 
 User Context:
 ${userContext}
 
 Response Guidelines:
-- Always consider the user's current fitness level and goals
-- Provide specific recommendations based on their recent activity
-- If asked about pain or injury, recommend consulting healthcare professionals
-- Encourage progressive overload and consistency with detailed explanations
-- Suggest modifications for exercises when appropriate with clear instructions
-- Give thorough, informative responses that educate the user
-- Include the "why" behind your recommendations, not just the "what"
-- When discussing exercises, include proper form cues, common mistakes to avoid, and progression tips
-- For nutrition advice, explain the science behind your recommendations
-- Always end with encouragement and next steps
+- Format your response point-wise, where each key point begins with a bullet point (*).
+- Keep responses brief, clear, and focused.
+- Provide specific recommendations based on recent activity.
+- If asked about pain/injury, recommend consulting healthcare professionals.
+- Include the "why" behind recommendations.
+- End with one clear next step or question.
 
-Remember: You are The Oracle, their trusted AI fitness coach in the FitQuest universe. Provide comprehensive, educational responses that help users understand not just what to do, but why they should do it.`;
+Remember: You are The Oracle. Provide concise, actionable guidance that helps users understand what to do and why.`;
   }
 
   /**
    * Get fallback AI response when Gemini is not available
    */
-  private getFallbackResponse(message: string): string {
-    const lowerMessage = message.toLowerCase();
+  private getFallbackResponse(message: string, session?: IChatSession): string {
+    let lowerMessage = message.toLowerCase();
 
-    if (lowerMessage.includes('squat') || lowerMessage.includes('form')) {
-      return `I've analyzed your recent squat form data, and I want to help you perfect this fundamental movement. Based on your form analysis, I recommend focusing on maintaining a neutral spine throughout the entire movement - this means keeping your chest up and avoiding excessive forward lean.
+    const hasDietKeywords = (str: string) => 
+      str.includes('meal') || str.includes('nutrition') || str.includes('protein') || 
+      str.includes('diet') || str.includes('deit') || str.includes('calorie') || 
+      str.includes('carb') || str.includes('fat') || str.includes('food') || 
+      str.includes('eat') || str.includes('weight') || str.includes('gain') || 
+      str.includes('lose');
 
-Here are the key points to focus on: First, ensure your core is properly engaged before you even begin the descent. Think about bracing your abs as if someone were about to punch you in the stomach. Second, control the descent phase more deliberately - aim for a 2-3 second lowering phase rather than dropping quickly. This eccentric control builds strength and improves your movement pattern.
+    const hasSquatKeywords = (str: string) => 
+      str.includes('squat') || str.includes('form') || str.includes('technique') || 
+      str.includes('posture');
 
-For your stance, keep your feet shoulder-width apart with toes slightly pointed out (about 15-30 degrees). As you descend, focus on pushing your knees out in line with your toes, and imagine sitting back into a chair rather than just bending your knees. Your hip crease should go just below your knee cap for a full squat.
+    const hasInjuryKeywords = (str: string) => 
+      str.includes('hurt') || str.includes('pain') || str.includes('injury') || 
+      str.includes('knee') || str.includes('shoulder') || str.includes('back') || 
+      str.includes('ankle') || str.includes('elbow') || str.includes('wrist');
 
-Remember, quality over quantity always wins. I'd rather see you perform 8 perfect squats than 15 sloppy ones. Consider reducing the weight temporarily to master the movement pattern - your strength will return quickly once your form is dialed in, and you'll be much safer in the long run.`;
+    const hasRecoveryKeywords = (str: string) => 
+      str.includes('recovery') || str.includes('rest') || str.includes('sleep') || 
+      str.includes('tired') || str.includes('fatigue') || str.includes('sore') || 
+      str.includes('stretch');
+
+    const hasWorkoutKeywords = (str: string) => 
+      str.includes('workout') || str.includes('exercise') || str.includes('train') || 
+      str.includes('routine') || str.includes('program') || str.includes('lift') || 
+      str.includes('gym') || str.includes('muscle') || str.includes('build');
+
+    const hasAnyKeywords = (str: string) => 
+      hasDietKeywords(str) || hasSquatKeywords(str) || hasInjuryKeywords(str) || 
+      hasRecoveryKeywords(str) || hasWorkoutKeywords(str);
+
+    const isShortFollowUp = lowerMessage.length < 10 || 
+                            lowerMessage === 'more' || 
+                            lowerMessage.includes('explain') || 
+                            lowerMessage.includes('continue') || 
+                            lowerMessage.includes('elaborate');
+
+    // Context check: If message has no keywords or is a short follow up, look back at session history
+    if (session && session.messages && (isShortFollowUp || !hasAnyKeywords(lowerMessage))) {
+      for (let i = session.messages.length - 2; i >= 0; i--) {
+        const msg = session.messages[i];
+        if (msg.role === 'user' && hasAnyKeywords(msg.content.toLowerCase())) {
+          lowerMessage = msg.content.toLowerCase();
+          break;
+        }
+      }
     }
 
-    if (lowerMessage.includes('meal') || lowerMessage.includes('nutrition') || lowerMessage.includes('protein')) {
-      return `Based on your current goals and activity level, I want to dive deep into optimizing your nutrition for better results. Your protein intake is crucial for muscle recovery and growth, and I recommend aiming for 1.6-2.2g per kg of body weight daily. This isn't just about hitting a number - protein timing and quality matter significantly.
+    if (hasSquatKeywords(lowerMessage)) {
+      return `I want to help you perfect your movement technique and form. Focus on the following key guidelines:
 
-Here's what I suggest: Include a high-quality protein source at every meal, focusing on complete proteins like chicken, fish, eggs, dairy, or combining plant proteins like rice and beans. Post-workout, aim to consume 20-40g of protein within 30-60 minutes of training. This is when your muscles are most receptive to protein synthesis.
-
-Don't neglect your carbohydrates either - they're your body's preferred fuel source and crucial for recovery. Complex carbs like oats, sweet potatoes, and quinoa provide sustained energy and help replenish muscle glycogen. Healthy fats from sources like avocados, nuts, and olive oil support hormone production and nutrient absorption.
-
-Hydration is equally important - aim for at least 35ml per kg of body weight daily, more on training days. Consider tracking your intake for a week to identify patterns and areas for improvement. Remember, consistency beats perfection - small, sustainable changes compound over time to create remarkable results.`;
+* **Maintain a Neutral Spine**: Keep your chest upright and avoid excessive forward lean throughout the entire movement.
+* **Engage Your Core**: Brace your abs before beginning the movement as if preparing for an impact, which stabilizes your lower back.
+* **Control the Tempo**: Aim for a deliberate 2-3 second lowering phase rather than dropping quickly to build eccentric control and stability.
+* **Optimize Your Stance**: Ensure proper foot placement (shoulder-width for squats) and align your knees with your toes to protect your joints.
+* **Prioritize Form Over Load**: Reduce the weight temporarily to master the movement pattern safely before progressing.`;
     }
 
-    if (lowerMessage.includes('hurt') || lowerMessage.includes('pain') || lowerMessage.includes('injury')) {
-      return `I'm concerned about the discomfort you're experiencing, and I want to address this carefully. Pain is your body's way of communicating that something needs attention, and it's crucial we don't ignore these signals. Based on your activity patterns, I recommend immediate rest from any movements that aggravate the area.
+    if (hasDietKeywords(lowerMessage)) {
+      return `Here are key nutrition principles to optimize your diet, weight management, and recovery:
 
-Here's my immediate action plan for you: First, apply the RICE protocol - Rest, Ice (15-20 minutes every 2-3 hours), Compression (if appropriate), and Elevation (if applicable). Gentle stretching and mobility work can help, but avoid anything that increases pain. Focus on movements that feel good and promote blood flow without stress.
-
-However, I must emphasize that if this pain persists for more than 2-3 days, worsens, or is accompanied by swelling, numbness, or significant limitation in movement, you should consult a healthcare professional immediately. A physical therapist or sports medicine doctor can provide proper assessment and treatment.
-
-In the meantime, consider this an opportunity to focus on other aspects of your fitness - perhaps upper body work if it's a lower body issue, or vice versa. Remember, taking a few days off now is much better than pushing through and potentially causing weeks or months of problems. Your long-term health and fitness journey are more important than any single workout.`;
+* **Prioritize Protein**: Aim for 1.6-2.2g of protein per kg of body weight daily. Include high-quality sources (chicken, fish, eggs, dairy, or combined plant proteins) in every meal.
+* **Manage Caloric Balance**: To gain weight/muscle (like adding muscle mass over the next 3-4 months), consume a surplus of 300-500 calories above maintenance. To lose fat, aim for a deficit of 300-500 calories.
+* **Fuel with Complex Carbs**: Eat oats, sweet potatoes, brown rice, and quinoa to replenish muscle glycogen and sustain your training energy.
+* **Incorporate Healthy Fats**: Add avocado, nuts, seeds, and olive oil to your meals to support hormone production and nutrient absorption.
+* **Stay Well-Hydrated**: Drink at least 35ml of water per kg of body weight daily (more on intense training days).`;
     }
 
-    if (lowerMessage.includes('recovery') || lowerMessage.includes('rest')) {
-      return `Recovery is absolutely crucial to your fitness success - in fact, it's during rest that your body actually adapts and grows stronger from your training. I'm glad you're asking about this because it shows you understand that fitness isn't just about the work you do in the gym.
+    if (hasInjuryKeywords(lowerMessage)) {
+      return `I want to address your discomfort and prioritize your safety. Please follow these guidelines:
 
-Sleep is your most powerful recovery tool. Aim for 7-9 hours of quality sleep nightly, as this is when your body releases growth hormone, repairs muscle tissue, and consolidates the neural adaptations from your training. Create a consistent sleep schedule, keep your room cool and dark, and avoid screens for at least an hour before bed.
-
-Active recovery is also incredibly valuable. On your rest days, consider light activities like walking, gentle yoga, or swimming at an easy pace. These activities promote blood flow, help clear metabolic waste products, and can actually speed up recovery. Stretching and foam rolling can also help maintain mobility and reduce muscle tension.
-
-Nutrition plays a huge role in recovery too. Focus on anti-inflammatory foods like berries, leafy greens, and fatty fish. Stay well-hydrated, and don't forget about stress management - chronic stress elevates cortisol, which can impair recovery and adaptation. Consider meditation, deep breathing exercises, or other stress-reduction techniques as part of your recovery protocol.`;
+* **Rest Immediately**: Stop any movements that aggravate the area. Pain is a signal that something needs immediate attention.
+* **R.I.C.E. Protocol**: Apply Rest, Ice (15-20 minutes every 2-3 hours), Compression, and Elevation where applicable.
+* **Avoid Painful Stretches**: Only perform gentle mobility work if it is completely pain-free; do not push through discomfort.
+* **Seek Professional Advice**: If pain persists beyond 2-3 days, worsens, or is accompanied by swelling/numbness, consult a doctor or physical therapist.
+* **Adjust Your Routine**: Use this time to focus on unaffected areas (e.g., upper body exercises if you have a lower body injury).`;
     }
 
-    if (lowerMessage.includes('workout') || lowerMessage.includes('exercise')) {
-      return `Let's talk about creating an effective workout strategy that will help you reach your goals safely and efficiently. The foundation of any good program is progressive overload - the gradual increase in training stimulus over time. This doesn't always mean adding more weight; you can progress by increasing reps, sets, training frequency, or improving exercise technique.
+    if (hasRecoveryKeywords(lowerMessage)) {
+      return `To support optimal muscle repair and performance, focus on these recovery pillars:
 
-Here's what I recommend for your training structure: Start each session with a proper warm-up - 5-10 minutes of light cardio followed by dynamic stretching and movement preparation specific to your workout. This prepares your nervous system, increases blood flow, and reduces injury risk significantly.
+* **Optimize Sleep**: Aim for 7-9 hours of quality sleep nightly to trigger growth hormone release and tissue repair. Avoid screens 1 hour before bed.
+* **Incorporate Active Recovery**: Perform light activities (walking, easy yoga, swimming) on rest days to promote blood flow and speed up healing.
+* **Stretch and Roll**: Spend time stretching and foam rolling to reduce muscle tension and maintain flexibility.
+* **Eat Anti-Inflammatory Foods**: Include berries, leafy greens, and fatty fish in your diet to reduce systemic inflammation.
+* **Manage Stress**: Practice deep breathing or meditation to lower cortisol levels, as high stress impairs physical recovery.`;
+    }
 
-Focus on compound movements that work multiple muscle groups simultaneously - squats, deadlifts, push-ups, rows, and overhead presses should form the backbone of your routine. These exercises give you the most bang for your buck and translate better to real-world activities. Aim for 2-3 full-body sessions per week if you're a beginner, or 3-4 sessions with an upper/lower split if you're more advanced.
+    if (hasWorkoutKeywords(lowerMessage)) {
+      return `Here is a structured strategy to make your workouts safe and highly effective:
 
-Don't forget about the cool-down - spend 5-10 minutes doing static stretching and light movement to help your body transition back to rest. Track your workouts to ensure you're progressing over time, and remember that consistency trumps intensity. It's better to do moderate workouts consistently than to go all-out sporadically and burn out.`;
+* **Apply Progressive Overload**: Gradually increase your training stimulus over time by adding reps, sets, frequency, or improving technique.
+* **Warm Up Properly**: Dedicate 5-10 minutes to light cardio and dynamic stretches before starting to prime your nervous system.
+* **Prioritize Compound Movements**: Focus on exercises that target multiple muscle groups, such as squats, deadlifts, push-ups, and rows.
+* **Structure Your Routine**: Aim for 2-3 full-body sessions per week as a beginner, or 3-4 sessions with an upper/lower split if advanced.
+* **Cool Down Post-Workout**: Spend 5-10 minutes doing static stretching to help your body transition smoothly back to rest.`;
     }
 
     // Default response
-    return `I'm here to help you achieve your fitness goals, and I want to provide you with comprehensive guidance even though my advanced AI features are currently limited. The foundation of any successful fitness journey lies in three key pillars: consistent training, proper nutrition, and adequate recovery.
+    return `To build a strong foundation for your fitness journey, focus on these three primary pillars:
 
-Let's start with consistency - this is arguably the most important factor in your success. It's better to do something small every day than to have perfect workouts sporadically. Whether it's a 10-minute walk, some bodyweight exercises, or a full gym session, showing up consistently builds the habit and momentum you need for long-term success.
-
-Proper form should always be your priority over lifting heavier weights or doing more reps. Good form not only prevents injuries but also ensures you're targeting the right muscles effectively. If you're unsure about technique, consider working with a qualified trainer initially, or use mirrors and video to check your form.
-
-Listen to your body - it's incredibly intelligent and will give you signals about when to push harder and when to back off. Soreness is normal, but sharp pain is not. Fatigue is expected, but chronic exhaustion suggests you need more recovery. What specific aspect of your fitness journey would you like to explore further? I'm here to provide detailed guidance on any topic you'd like to discuss.`;
+* **Maintain Consistency**: Focus on showing up every day, even for a 10-minute walk. Regular habits compound to build long-term success.
+* **Focus on Proper Form**: Prioritize correct technique over lifting heavier weights to prevent injury and target the right muscles.
+* **Listen to Your Body**: Pay attention to signals of fatigue and sharp pain. Adjust your training intensity or rest as needed.
+* **Track Your Progress**: Keep a log of your workouts and nutrition to help you stay motivated and measure your improvements.`;
   }
 
   /**
-   * Chat with AI coach using Gemini or fallback
+   * Chat with AI coach using Gemini
    */
   async chat(request: ChatRequest): Promise<ChatResponse> {
+    let session: IChatSession | undefined;
     try {
       // Get or create chat session
-      let session: IChatSession;
       
       if (request.sessionId) {
         session = await ChatSession.findById(request.sessionId);
@@ -286,12 +331,12 @@ Listen to your body - it's incredibly intelligent and will give you signals abou
           const result = await chat.sendMessage(request.message);
           aiResponse = result.response.text();
         } catch (geminiError) {
-          console.error('Gemini API Error:', geminiError);
-          aiResponse = this.getFallbackResponse(request.message);
+          console.error('Gemini API call failed, falling back to local responses:', geminiError);
+          aiResponse = this.getFallbackResponse(request.message, session);
         }
       } else {
-        // Use fallback response when Gemini is not available
-        aiResponse = this.getFallbackResponse(request.message);
+        console.warn('Gemini API is not configured or disabled, using local responses.');
+        aiResponse = this.getFallbackResponse(request.message, session);
       }
 
       // Add AI message to session
@@ -321,12 +366,22 @@ Listen to your body - it's incredibly intelligent and will give you signals abou
     } catch (error: any) {
       console.error('AI Coach Service Error:', error);
       
-      // Fallback response for any errors
-      return {
-        message: "I'm experiencing some technical difficulties right now. Please try again in a moment. In the meantime, remember to stay consistent with your workouts and listen to your body!",
-        sessionId: request.sessionId || '',
-        suggestions: ['Stay hydrated', 'Focus on proper form', 'Get adequate rest']
-      };
+      // If it's our custom error or message limit error, rethrow it
+      if (error.message.includes('Message limit') || error.message.includes('Invalid session')) {
+        throw error;
+      }
+      
+      // For any other unexpected errors, try to return a fallback response if session exists
+      try {
+        const aiResponse = this.getFallbackResponse(request.message, session);
+        return {
+          message: aiResponse,
+          sessionId: request.sessionId || '',
+          suggestions: this.extractSuggestions(aiResponse)
+        };
+      } catch (e) {
+        throw new Error('AI service encountered an error. Please try again later.');
+      }
     }
   }
 
@@ -403,15 +458,35 @@ Listen to your body - it's incredibly intelligent and will give you signals abou
   }
 
   /**
-   * Get personalized recommendations using Gemini or fallback
+   * Get personalized recommendations using Gemini
    */
   async getRecommendations(request: { userId: string }): Promise<Recommendation[]> {
-    try {
-      if (this.isGeminiAvailable && this.model) {
-        try {
-          const userContext = await this.getUserContext(request.userId);
-          
-          const prompt = `Based on the following user data, provide 3 specific fitness recommendations. Format each as: TYPE|TITLE|DESCRIPTION|PRIORITY
+    const fallbackRecs = [
+      {
+        type: 'workout' as const,
+        title: 'Master the Squat Form',
+        description: 'Focus on maintaining a neutral spine and proper knee alignment. Keep your chest up and control the descent phase.',
+        priority: 'high' as const
+      },
+      {
+        type: 'nutrition' as const,
+        title: 'Optimize Protein Timing',
+        description: 'Aim for 1.6-2.2g of protein per kg of body weight, distributing it evenly across meals and post-workout.',
+        priority: 'medium' as const
+      },
+      {
+        type: 'recovery' as const,
+        title: 'Prioritize Quality Sleep',
+        description: 'Ensure 7-9 hours of restful sleep tonight to support muscle repair, hormone regulation, and nervous system recovery.',
+        priority: 'high' as const
+      }
+    ];
+
+    if (this.isGeminiAvailable && this.model) {
+      try {
+        const userContext = await this.getUserContext(request.userId);
+        
+        const prompt = `Based on the following user data, provide 3 specific fitness recommendations. Format each as: TYPE|TITLE|DESCRIPTION|PRIORITY
 
 ${userContext}
 
@@ -423,64 +498,19 @@ Provide recommendations for:
 Each recommendation should be specific and actionable. Use these types: workout, nutrition, recovery, form
 Use these priorities: high, medium, low`;
 
-          const result = await this.model.generateContent(prompt);
-          const response = result.response.text();
-          
-          const recommendations = this.parseRecommendations(response);
-          if (recommendations.length > 0) {
-            return recommendations;
-          }
-        } catch (geminiError) {
-          console.error('Gemini API Error for recommendations:', geminiError);
+        const result = await this.model.generateContent(prompt);
+        const response = result.response.text();
+        
+        const recommendations = this.parseRecommendations(response);
+        if (recommendations.length > 0) {
+          return recommendations;
         }
+      } catch (error) {
+        console.error('Error getting recommendations from Gemini, using fallback:', error);
       }
-      
-      // Fallback recommendations when Gemini is not available or fails
-      return [
-        {
-          type: 'workout',
-          title: 'Progressive Overload',
-          description: 'Gradually increase weight, reps, or sets in your workouts to continue making progress.',
-          priority: 'high'
-        },
-        {
-          type: 'nutrition',
-          title: 'Post-Workout Nutrition',
-          description: 'Consume protein and carbs within 30 minutes after your workout for optimal recovery.',
-          priority: 'medium'
-        },
-        {
-          type: 'recovery',
-          title: 'Sleep Quality',
-          description: 'Aim for 7-9 hours of quality sleep to support muscle recovery and performance.',
-          priority: 'high'
-        }
-      ];
-    } catch (error) {
-      console.error('Error getting recommendations:', error);
-      
-      // Fallback recommendations for any errors
-      return [
-        {
-          type: 'workout',
-          title: 'Stay Consistent',
-          description: 'Consistency is key to achieving your fitness goals. Stick to your routine.',
-          priority: 'high'
-        },
-        {
-          type: 'nutrition',
-          title: 'Balanced Diet',
-          description: 'Focus on a balanced diet with adequate protein, carbs, and healthy fats.',
-          priority: 'medium'
-        },
-        {
-          type: 'recovery',
-          title: 'Listen to Your Body',
-          description: 'Pay attention to how your body feels and adjust your training accordingly.',
-          priority: 'high'
-        }
-      ];
     }
+
+    return fallbackRecs;
   }
 
   /**
@@ -512,4 +542,6 @@ Use these priorities: high, medium, low`;
 }
 
 export const aiCoachService = new AICoachService();
+
+
 

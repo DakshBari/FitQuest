@@ -10,7 +10,7 @@ const noLayoutPages = ["/login", "/register", "/", "/landing"]
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  
+
   // Check if current page should have the layout
   const shouldShowLayout = !noLayoutPages.includes(pathname)
 

@@ -1,8 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { updateStatus } from '@/services/authService' // Import this
+import { updateStatus } from '@/services/authService'
 
 interface User {
   id: string
@@ -25,100 +24,109 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+
+/** Fire-and-forget: survives page navigation / tab close */
+function beaconOffline() {
+  try {
+    const blob = new Blob([JSON.stringify({ isOnline: false })], { type: 'application/json' })
+    navigator.sendBeacon(`${API_URL}/api/users/status`, blob)
+  } catch {
+    updateStatus(false)
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const router = useRouter()
 
+  // ── Init from localStorage ─────────────────────────────
   useEffect(() => {
-    const initAuth = () => {
-      const storedToken = localStorage.getItem('token')
-      const storedUserRaw = localStorage.getItem('user')
+    const storedToken = localStorage.getItem('token')
+    const storedUserRaw = localStorage.getItem('user')
 
-      if (!storedToken || !storedUserRaw) {
-        console.log('Incomplete auth data found. Clearing...')
+    if (!storedToken || !storedUserRaw) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      const parsedUser = JSON.parse(storedUserRaw)
+
+      if (parsedUser.email === 'user@fitquest.com' || !parsedUser.id) {
+        console.warn('Mock/invalid user detected — clearing storage')
         localStorage.removeItem('token')
         localStorage.removeItem('user')
         setIsLoading(false)
         return
       }
 
-      try {
-        const parsedUser = JSON.parse(storedUserRaw)
-
-        if (parsedUser.email === 'user@fitquest.com' || !parsedUser.id) {
-          console.warn('!!! MOCK/INVALID USER DETECTED !!!')
-          localStorage.removeItem('token')
-          localStorage.removeItem('user')
-          setIsLoading(false)
-          return
-        }
-
-        setToken(storedToken)
-        setUser(parsedUser)
-        
-        // CRITICAL: Set status to online when app loads
-        updateStatus(true) 
-        
-        console.log('Session Restored for user:', parsedUser.username)
-      } catch (error) {
-        console.error('Error parsing stored user data:', error)
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
-      }
-      
-      setIsLoading(false)
+      setToken(storedToken)
+      setUser(parsedUser)
+      updateStatus(true)   // mark online on app load
+      console.log('Session restored for:', parsedUser.username)
+    } catch (e) {
+      console.error('Error parsing stored user:', e)
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
     }
 
-    initAuth()
+    setIsLoading(false)
   }, [])
 
+  // ── Heartbeat: refresh lastSeen every 3 min ────────────
+  useEffect(() => {
+    if (!token) return
+    const id = setInterval(() => updateStatus(true), 3 * 60 * 1000)
+    return () => clearInterval(id)
+  }, [token])
+
+  // ── Tab hide / close → mark offline ───────────────────
+  useEffect(() => {
+    if (!token) return
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') beaconOffline()
+      else updateStatus(true)
+    }
+    const onUnload = () => beaconOffline()
+
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('beforeunload', onUnload)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('beforeunload', onUnload)
+    }
+  }, [token])
+
+  // ── Login ───────────────────────────────────────────────
   const login = (newToken: string, newUser: User) => {
-    console.log('AuthContext: Logging in...')
     setToken(newToken)
     setUser(newUser)
-    
     localStorage.setItem('token', newToken)
     localStorage.setItem('user', JSON.stringify(newUser))
-    
-    const expires = new Date()
-    expires.setDate(expires.getDate() + 7)
-    document.cookie = `token=${newToken};expires=${expires.toUTCString()};path=/;SameSite=Lax`
-    
-    // CRITICAL: Set status to online when logging in
+    const exp = new Date(); exp.setDate(exp.getDate() + 7)
+    document.cookie = `token=${newToken};expires=${exp.toUTCString()};path=/;SameSite=Lax`
     updateStatus(true)
-    
-    console.log('User logged in:', newUser.username)
+    console.log('Logged in:', newUser.username)
   }
 
+  // ── Logout ──────────────────────────────────────────────
   const logout = () => {
-    console.log('AuthContext: Logging out...')
-    
-    // Set status to offline before logging out
-    updateStatus(false)
-    
+    beaconOffline()   // beacon survives the redirect
     setToken(null)
     setUser(null)
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     document.cookie = `token=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`
-    
-    console.log('Storage cleared. Redirecting...')
     window.location.href = '/login'
   }
 
-  const value = {
-    user,
-    token,
-    login,
-    logout,
-    isLoading,
-    isAuthenticated: !!token && !!user
-  }
-
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ user, token, login, logout, isLoading, isAuthenticated: !!token && !!user }}>
       {children}
     </AuthContext.Provider>
   )
@@ -126,8 +134,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider')
   return context
 }

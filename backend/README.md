@@ -136,3 +136,5 @@ The AI coach service integration is prepared in `src/services/aiCoachService.ts`
 
 ISC
 
+
+

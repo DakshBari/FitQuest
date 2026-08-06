@@ -41,11 +41,11 @@ export function CoachingPanel() {
                 </h3>
                 
                 <div className="space-y-3">
-                    <div className="flex items-start gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                        <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5"/>
+                    <div className="flex items-start gap-3 p-3 bg-violet-500/10 border border-violet-500/20 rounded-lg">
+                        <AlertTriangle className="w-5 h-5 text-violet-400 mt-0.5"/>
                         <div>
-                            <span className="text-sm font-bold text-red-300 block">Common Mistake</span>
-                            <span className="text-xs text-red-400">Knees caving inward during ascent.</span>
+                            <span className="text-sm font-bold text-violet-300 block">Common Mistake</span>
+                            <span className="text-xs text-violet-400">Knees caving inward during ascent.</span>
                         </div>
                     </div>
                     

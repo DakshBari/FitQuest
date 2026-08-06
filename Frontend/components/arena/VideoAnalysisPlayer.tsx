@@ -114,13 +114,13 @@ export function VideoAnalysisPlayer({ videoData, onBack }: VideoAnalysisPlayerPr
   const getFormScoreColor = (score: number) => {
     if (score >= 90) return 'text-green-500'
     if (score >= 70) return 'text-yellow-500'
-    return 'text-red-500'
+    return 'text-violet-500'
   }
   
   const getFormScoreBadge = (score: number) => {
     if (score >= 90) return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
     if (score >= 70) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-    return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+    return 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300'
   }
 
   if (!frames.length) {

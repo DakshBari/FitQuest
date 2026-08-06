@@ -93,3 +93,5 @@ TerritorySchema.index({ userId: 1, captured: 1 });
 
 export default mongoose.model<ITerritory>('Territory', TerritorySchema);
 
+
+

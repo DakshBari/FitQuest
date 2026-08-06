@@ -49,7 +49,11 @@ class AICoachService {
         if (response.status === 401) {
           throw new Error('Authentication required. Please log in to use the AI coach.');
         }
-        throw new Error(`HTTP error! status: ${response.status}`);
+        
+        // Try to get error message from response
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || `HTTP error! status: ${response.status}`;
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();

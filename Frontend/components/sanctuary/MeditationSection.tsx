@@ -1,239 +1,291 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Slider } from "@/components/ui/slider"
-import { 
-  Eye, 
-  EyeOff, 
-  Wind, 
-  Volume2, 
-  ArrowLeft, 
-  Play, 
-  Pause,
-  RotateCcw,
-  Sparkles,
-  Heart,
-  Brain
-} from "lucide-react"
+import { Eye, Wind, Volume2, ArrowLeft, Play, Clock } from "lucide-react"
 import { VoidChallenge } from "./VoidChallenge"
 import { BreathSyncer } from "./BreathSyncer"
 import { SoundAlchemist } from "./SoundAlchemist"
 import { MeditationAvatar } from "./MeditationAvatar"
+import { cn } from "@/lib/utils"
 
-type RitualMode = 'selection' | 'void' | 'breath' | 'sound'
+type RitualMode = "selection" | "void" | "breath" | "sound"
 
 const rituals = [
   {
-    id: 'void',
-    name: 'The Void Challenge',
-    subtitle: 'AI Eye-Tracking Meditation',
-    description: 'Keep your eyes closed to progress through the void. AI tracks your eyelids for the ultimate focus challenge.',
+    id: "void",
+    name: "The Void Challenge",
+    subtitle: "AI Eye-Tracking Meditation",
+    description:
+      "Keep your eyes closed to progress. AI tracks your eyelids for the ultimate focus challenge.",
     icon: Eye,
-    color: 'from-purple-500 to-violet-600',
-    bgColor: 'from-purple-50 to-violet-100 dark:from-purple-900/20 dark:to-violet-900/20',
-    textColor: 'text-purple-700 dark:text-purple-300',
-    glowColor: 'shadow-purple-500/30 dark:shadow-purple-500/20'
+    accent: "#8b5cf6",
+    tag: "Focus",
   },
   {
-    id: 'breath',
-    name: 'Breath Syncer',
-    subtitle: 'Visual & Audio Breathing Guide',
-    description: 'Synchronized breathing with a glowing orb. Perfect for anxiety reduction and deep relaxation.',
+    id: "breath",
+    name: "Breath Syncer",
+    subtitle: "Visual & Audio Breathing Guide",
+    description:
+      "Synchronized breathing with a visual rhythm guide. Reduces anxiety and deepens relaxation.",
     icon: Wind,
-    color: 'from-blue-500 to-cyan-600',
-    bgColor: 'from-blue-50 to-cyan-100 dark:from-blue-900/20 dark:to-cyan-900/20',
-    textColor: 'text-blue-700 dark:text-blue-300',
-    glowColor: 'shadow-blue-500/30 dark:shadow-blue-500/20'
+    accent: "#06b6d4",
+    tag: "Calm",
   },
   {
-    id: 'sound',
-    name: 'Sound Alchemist',
-    subtitle: 'Ambient Environment Mixer',
-    description: 'Craft your perfect meditation soundscape with rain, fire, bowls, and theta waves.',
+    id: "sound",
+    name: "Sound Alchemist",
+    subtitle: "Ambient Environment Mixer",
+    description:
+      "Craft your perfect soundscape with rain, fire, bowls, and theta waves.",
     icon: Volume2,
-    color: 'from-emerald-500 to-teal-600',
-    bgColor: 'from-emerald-50 to-teal-100 dark:from-emerald-900/20 dark:to-teal-900/20',
-    textColor: 'text-emerald-700 dark:text-emerald-300',
-    glowColor: 'shadow-emerald-500/30 dark:shadow-emerald-500/20'
-  }
+    accent: "#10b981",
+    tag: "Immersive",
+  },
 ]
 
+// ─── Session status bar ───────────────────────────────────
+function SessionBar({
+  mode,
+  duration,
+  onBack,
+}: {
+  mode: RitualMode
+  duration: number
+  onBack: () => void
+}) {
+  const ritual = rituals.find((r) => r.id === mode)
+  const m = String(Math.floor(duration / 60)).padStart(2, "0")
+  const s = String(duration % 60).padStart(2, "0")
+
+  return (
+    <div className="flex items-center justify-between px-5 py-3.5 rounded-2xl border border-border/40 bg-card/70 mb-5">
+      <div className="flex items-center gap-3">
+        {/* Live pulse dot */}
+        <span className="relative flex h-2 w-2">
+          <span
+            className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60"
+            style={{ background: ritual?.accent }}
+          />
+          <span
+            className="relative inline-flex rounded-full h-2 w-2"
+            style={{ background: ritual?.accent }}
+          />
+        </span>
+        <div>
+          <p className="text-sm font-semibold text-foreground leading-none">
+            {ritual?.name}
+          </p>
+          <p className="text-[10px] text-muted-foreground/60 mt-0.5 uppercase tracking-widest">
+            Active Session
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1.5">
+          <Clock className="w-3 h-3 text-muted-foreground/50" />
+          <span
+            className="text-lg font-black tabular-nums font-mono"
+            style={{ color: ritual?.accent }}
+          >
+            {m}:{s}
+          </span>
+        </div>
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/50 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-all"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Back
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Ritual card ─────────────────────────────────────────
+function RitualCard({
+  ritual,
+  onClick,
+}: {
+  ritual: (typeof rituals)[number]
+  onClick: () => void
+}) {
+  const Icon = ritual.icon
+  const [hovered, setHovered] = useState(false)
+
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="group w-full text-left relative rounded-2xl border border-border/40 bg-card/70 p-5 overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+      style={{
+        boxShadow: hovered ? `0 8px 32px ${ritual.accent}18` : undefined,
+        borderColor: hovered ? `${ritual.accent}40` : undefined,
+      }}
+    >
+      {/* Subtle accent line on left */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-0.5 transition-opacity duration-200"
+        style={{ background: ritual.accent, opacity: hovered ? 1 : 0.4 }}
+      />
+
+      {/* Content */}
+      <div className="flex items-start gap-4">
+        {/* Icon */}
+        <div
+          className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-105"
+          style={{ background: `${ritual.accent}15` }}
+        >
+          <Icon className="w-5 h-5" style={{ color: ritual.accent }} />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="text-sm font-bold text-foreground">{ritual.name}</h3>
+            <span
+              className="text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide"
+              style={{
+                color: ritual.accent,
+                background: `${ritual.accent}15`,
+              }}
+            >
+              {ritual.tag}
+            </span>
+          </div>
+          <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider mb-1.5">
+            {ritual.subtitle}
+          </p>
+          <p className="text-xs text-muted-foreground/70 leading-relaxed">
+            {ritual.description}
+          </p>
+        </div>
+
+        {/* Begin arrow */}
+        <div
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold flex-shrink-0 transition-all duration-200"
+          style={{
+            background: hovered ? ritual.accent : `${ritual.accent}15`,
+            color: hovered ? "#fff" : ritual.accent,
+          }}
+        >
+          <Play className="w-3 h-3" />
+          Begin
+        </div>
+      </div>
+    </button>
+  )
+}
+
+// ─── Selection grid ───────────────────────────────────────
+function SelectionView({ onSelect }: { onSelect: (id: string) => void }) {
+  return (
+    <div className="rounded-2xl border border-border/40 bg-card/70 overflow-hidden">
+      {/* Header */}
+      <div className="px-5 py-4 border-b border-border/30">
+        <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
+          Practice
+        </p>
+        <h2 className="text-base font-bold text-foreground mt-0.5">
+          Choose Your Ritual
+        </h2>
+        <p className="text-xs text-muted-foreground/60 mt-0.5">
+          Select a technique aligned with your current state of mind
+        </p>
+      </div>
+
+      {/* Cards */}
+      <div className="p-4 space-y-3">
+        {rituals.map((r) => (
+          <RitualCard key={r.id} ritual={r} onClick={() => onSelect(r.id)} />
+        ))}
+      </div>
+
+      {/* Footer hint */}
+      <div className="px-5 pb-4">
+        <p className="text-[10px] text-muted-foreground/35 text-center">
+          Each session is tracked · Progress is saved automatically
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main ─────────────────────────────────────────────────
 export function MeditationSection() {
-  const [currentMode, setCurrentMode] = useState<RitualMode>('selection')
+  const [currentMode, setCurrentMode] = useState<RitualMode>("selection")
   const [isSessionActive, setIsSessionActive] = useState(false)
   const [sessionDuration, setSessionDuration] = useState(0)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Session timer
   useEffect(() => {
     if (isSessionActive) {
-      intervalRef.current = setInterval(() => {
-        setSessionDuration(prev => prev + 1)
-      }, 1000)
+      intervalRef.current = setInterval(
+        () => setSessionDuration((p) => p + 1),
+        1000
+      )
     } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
+      if (intervalRef.current) clearInterval(intervalRef.current)
     }
-
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
+      if (intervalRef.current) clearInterval(intervalRef.current)
     }
   }, [isSessionActive])
 
-  const handleRitualSelect = (ritualId: string) => {
-    setCurrentMode(ritualId as RitualMode)
+  const handleSelect = (id: string) => {
+    setCurrentMode(id as RitualMode)
     setSessionDuration(0)
   }
 
-  const handleBackToSelection = () => {
-    setCurrentMode('selection')
+  const handleBack = () => {
+    setCurrentMode("selection")
     setIsSessionActive(false)
     setSessionDuration(0)
   }
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
-  }
-
   return (
-    <div className="space-y-6">
-      
-      {/* Header with Session Info */}
-      {currentMode !== 'selection' && (
-        <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5">
-          <div className="p-6 border-b border-border bg-gradient-to-r from-purple-500/10 via-transparent to-violet-500/10">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-foreground font-inter">Active Session</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {rituals.find(r => r.id === currentMode)?.name || 'Meditation Session'}
-                </p>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="text-right">
-                  <div className="text-2xl font-mono bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent">
-                    {formatTime(sessionDuration)}
-                  </div>
-                  <div className="text-xs text-muted-foreground uppercase tracking-wider">
-                    Session Time
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={handleBackToSelection}
-                  className="border-border/50 text-muted-foreground hover:text-foreground hover:bg-gradient-to-r hover:from-purple-500/20 hover:to-violet-500/20 hover:border-purple-500/30 bg-background/30 backdrop-blur-sm font-medium rounded-xl transition-all duration-200"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className="space-y-0">
+      {/* Session status bar (only in active ritual) */}
+      {currentMode !== "selection" && (
+        <SessionBar
+          mode={currentMode}
+          duration={sessionDuration}
+          onBack={handleBack}
+        />
       )}
 
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        
-        {/* Main Content Area */}
+      {/* Main layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
+        {/* Main content */}
         <div className="lg:col-span-3">
-          
-          {/* Ritual Selection */}
-          {currentMode === 'selection' && (
-            <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5">
-              <div className="p-6 border-b border-border bg-gradient-to-r from-purple-500/10 via-transparent to-violet-500/10">
-                <h2 className="text-xl font-bold text-foreground font-inter">Choose Your Practice</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Select a meditation technique that resonates with your current state of mind
-                </p>
-              </div>
-              
-              <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {rituals.map((ritual) => {
-                    const IconComponent = ritual.icon
-                    return (
-                      <Card
-                        key={ritual.id}
-                        className={`relative p-6 bg-gradient-to-br ${ritual.bgColor} border border-border/50 cursor-pointer 
-                                   hover:scale-105 transition-all duration-300 ${ritual.glowColor} hover:shadow-2xl
-                                   group overflow-hidden backdrop-blur-sm rounded-2xl`}
-                        onClick={() => handleRitualSelect(ritual.id)}
-                      >
-                        {/* Soft glow effect */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                        
-                        <div className="relative z-10 text-center space-y-4">
-                          <div className={`w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br ${ritual.color} 
-                                         flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
-                            <IconComponent className="w-8 h-8" />
-                          </div>
-                          
-                          <div>
-                            <h3 className="text-lg font-semibold text-foreground mb-1 font-inter">
-                              {ritual.name}
-                            </h3>
-                            <p className={`text-sm ${ritual.textColor} opacity-80 mb-3`}>
-                              {ritual.subtitle}
-                            </p>
-                            <p className="text-sm text-muted-foreground opacity-70 leading-relaxed">
-                              {ritual.description}
-                            </p>
-                          </div>
-                          
-                          <div className="pt-4">
-                            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl 
-                                           bg-gradient-to-r ${ritual.color} text-white text-sm font-medium
-                                           group-hover:shadow-lg transition-all duration-300`}>
-                              <Play className="w-4 h-4" />
-                              Begin Practice
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
+          {currentMode === "selection" && (
+            <SelectionView onSelect={handleSelect} />
           )}
-
-          {/* The Void Challenge */}
-          {currentMode === 'void' && (
+          {currentMode === "void" && (
             <VoidChallenge
               isActive={isSessionActive}
-              onToggle={() => setIsSessionActive(!isSessionActive)}
+              onToggle={() => setIsSessionActive((p) => !p)}
               sessionDuration={sessionDuration}
             />
           )}
-
-          {/* Breath Syncer */}
-          {currentMode === 'breath' && (
+          {currentMode === "breath" && (
             <BreathSyncer
               isActive={isSessionActive}
-              onToggle={() => setIsSessionActive(!isSessionActive)}
+              onToggle={() => setIsSessionActive((p) => !p)}
               sessionDuration={sessionDuration}
             />
           )}
-
-          {/* Sound Alchemist */}
-          {currentMode === 'sound' && (
+          {currentMode === "sound" && (
             <SoundAlchemist
               isActive={isSessionActive}
-              onToggle={() => setIsSessionActive(!isSessionActive)}
+              onToggle={() => setIsSessionActive((p) => !p)}
               sessionDuration={sessionDuration}
             />
           )}
         </div>
 
-        {/* Avatar Section */}
+        {/* Avatar sidebar */}
         <div className="lg:col-span-1">
           <MeditationAvatar
             isActive={isSessionActive}

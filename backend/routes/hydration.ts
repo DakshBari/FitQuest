@@ -11,3 +11,4 @@ router.get('/weekly', hydrationController.getWeeklyHydration);
 router.post('/', hydrationController.addWater);
 
 export { router as hydrationRoutes };
+

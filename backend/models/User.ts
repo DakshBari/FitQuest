@@ -25,16 +25,23 @@ export interface IUser extends Document {
     protein: number;
     carbs: number;
     fats: number;
+    water: number;
   };
   profile: {
     weight?: number;
     height?: number;
     bodyType?: 'ectomorph' | 'mesomorph' | 'endomorph';
     goal?: 'muscle-gain' | 'weight-loss' | 'maintenance' | 'endurance';
+    workoutSplit?: 'push-pull-legs' | 'upper-lower' | 'full-body' | 'bro-split' | 'custom';
+    foodPreference?: 'non-veg' | 'veg' | 'vegan' | 'jain';
   };
   territories: number;
   challengesWon: number;
   winStreak: number;
+  privacy: {
+    profileVisible: boolean;
+    activityVisible: boolean;
+  };
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -97,7 +104,8 @@ const UserSchema = new Schema<IUser>(
       calories: { type: Number, default: 2000 },
       protein: { type: Number, default: 150 },
       carbs: { type: Number, default: 200 },
-      fats: { type: Number, default: 65 }
+      fats: { type: Number, default: 65 },
+      water: { type: Number, default: 3000 }
     },
     profile: {
       weight: Number,
@@ -109,6 +117,15 @@ const UserSchema = new Schema<IUser>(
       goal: {
         type: String,
         enum: ['muscle-gain', 'weight-loss', 'maintenance', 'endurance']
+      },
+      workoutSplit: {
+        type: String,
+        enum: ['push-pull-legs', 'upper-lower', 'full-body', 'bro-split', 'custom']
+      },
+      foodPreference: {
+        type: String,
+        enum: ['non-veg', 'veg', 'vegan', 'jain'],
+        default: 'non-veg'
       }
     },
     territories: {
@@ -122,6 +139,10 @@ const UserSchema = new Schema<IUser>(
     winStreak: {
       type: Number,
       default: 0
+    },
+    privacy: {
+      profileVisible: { type: Boolean, default: true },
+      activityVisible: { type: Boolean, default: true }
     }
   },
   {
@@ -144,3 +165,4 @@ UserSchema.methods.comparePassword = async function (candidatePassword: string):
 };
 
 export default mongoose.model<IUser>('User', UserSchema);
+

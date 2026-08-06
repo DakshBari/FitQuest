@@ -171,3 +171,5 @@ backend/
 4. Set up production environment variables
 5. Configure CORS for production frontend URL
 
+
+

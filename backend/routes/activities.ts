@@ -203,3 +203,5 @@ router.put('/:id', async (req: AuthRequest, res, next) => {
 
 export { router as activityRoutes };
 
+
+

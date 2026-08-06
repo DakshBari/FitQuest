@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Edit2, Plus, RefreshCw, Utensils, History, BarChart3 } from "lucide-react"
+import { Edit2, Plus, RefreshCw, Utensils, History, BarChart3, Sparkles } from "lucide-react"
 import { FuelGauge } from "@/components/kitchen/FuelGauge"
 import { HydrationTracker } from "@/components/kitchen/HydrationTracker"
 import { MealCard } from "@/components/kitchen/MealCard"
@@ -14,6 +14,7 @@ import { GoalSettings, GoalType } from "@/components/kitchen/GoalSettings"
 import { AddMealModal } from "@/components/kitchen/AddMealModal"
 import { MealHistory } from "@/components/kitchen/MealHistory"
 import { MealAnalytics } from "@/components/kitchen/MealAnalytics"
+import { AISuggestions } from "@/components/kitchen/AISuggestions"
 import { useApi } from "@/hooks/useApi"
 import { getCurrentTime } from "@/lib/timeUtils"
 import { getThemeClasses } from "@/lib/pageThemes"
@@ -33,7 +34,8 @@ export default function KitchenPage() {
     weight: 75, 
     height: 180, 
     bodyType: 'mesomorph' as 'ectomorph' | 'mesomorph' | 'endomorph',
-    goal: 'muscle-gain' as GoalType
+    goal: 'muscle-gain' as GoalType,
+    foodPreference: 'non-veg' as 'non-veg' | 'veg' | 'vegan' | 'jain'
   })
 
   const [viewMode, setViewMode] = useState<'daily' | 'weekly'>('daily')
@@ -53,6 +55,7 @@ export default function KitchenPage() {
   const [weeklyGoals, setWeeklyGoals] = useState<any>(null)
   const [weeklyHydration, setWeeklyHydration] = useState<any[]>([])
   const [hydration, setHydration] = useState(0)
+  const [showAISuggestions, setShowAISuggestions] = useState(false)
   
   const [goals, setGoals] = useState({
     calories: 2000,
@@ -137,7 +140,8 @@ export default function KitchenPage() {
   const fetchHydration = async () => {
     try {
       const data = await api.hydration.getToday()
-      setHydration(data.totalIntake || 0)
+      console.log('Hydration data:', data) // Debug log
+      setHydration(data.hydration?.amount || 0)
     } catch (error) {
       console.error("Failed to fetch hydration", error)
     }
@@ -146,11 +150,61 @@ export default function KitchenPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
+      fetchUserProfile()
       fetchDailyData()
       fetchHydration()
       fetchFavorites() // Fetch all favorites
     }
   }, [isAuthenticated, authLoading])
+
+  const fetchUserProfile = async () => {
+    try {
+      const data = await api.call('/api/users/profile')
+      if (data.user) {
+        setProfile({
+          weight: data.user.profile?.weight || 75,
+          height: data.user.profile?.height || 180,
+          bodyType: data.user.profile?.bodyType || 'mesomorph',
+          goal: data.user.profile?.goal === 'weight-loss' ? 'fat-loss' : (data.user.profile?.goal || 'muscle-gain'),
+          foodPreference: data.user.profile?.foodPreference || 'non-veg'
+        })
+        setGoals({
+          calories: data.user.goals?.calories || 2000,
+          protein: data.user.goals?.protein || 150,
+          carbs: data.user.goals?.carbs || 200,
+          fats: data.user.goals?.fats || 65,
+          water: data.user.goals?.water || 3000
+        })
+      }
+    } catch (error) {
+      console.error("Failed to fetch user profile", error)
+    }
+  }
+
+  const handleSaveGoals = async (newProfile: any, newGoals: any) => {
+    try {
+      await api.call('/api/users/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          profile: {
+            weight: newProfile.weight,
+            height: newProfile.height,
+            bodyType: newProfile.bodyType,
+            goal: newProfile.goal === 'fat-loss' ? 'weight-loss' : newProfile.goal,
+            foodPreference: newProfile.foodPreference
+          },
+          goals: newGoals
+        })
+      })
+      setProfile(newProfile)
+      setGoals(newGoals)
+      // Refresh data to reflect new goals
+      await fetchDailyData()
+    } catch (error) {
+      console.error("Failed to save goals", error)
+      throw error
+    }
+  }
 
   useEffect(() => {
     if (viewMode === 'weekly') {
@@ -303,7 +357,8 @@ export default function KitchenPage() {
   const addWater = async (amount: number) => {
     try {
       await api.hydration.add(amount)
-      setHydration(prev => Math.min(prev + amount, goals.water + 1000))
+      // Refetch hydration data to get the actual total from server
+      await fetchHydration()
     } catch (error) {
       console.error("Failed to add water", error)
     }
@@ -318,42 +373,64 @@ export default function KitchenPage() {
         <GoalSettings 
           profile={profile} 
           setProfile={setProfile} 
-          onClose={() => setShowGoalSettings(false)} 
+          onClose={() => setShowGoalSettings(false)}
+          onSave={handleSaveGoals}
         />
       )}
 
-      {/* Modern Header */}
-      <PageHeader 
-        icon={Utensils}
-        title="The Kitchen"
-        subtitle={profile.goal === 'muscle-gain' ? "Mode: Hypertrophy (Bulk)" : 
-                 profile.goal === 'fat-loss' ? "Mode: Cutting (Deficit)" : "Mode: Maintenance"}
-        actions={
+      <div className="w-full max-w-7xl mx-auto px-6 sm:px-12 lg:px-20 flex-1 flex flex-col">
+        {/* Show AI Suggestions or Normal Content */}
+        {showAISuggestions ? (
+          <div className="flex-1 pb-8 pt-8">
+            <AISuggestions 
+              onBack={() => setShowAISuggestions(false)}
+              profile={profile}
+              goals={goals}
+              dailyStats={dailyStats}
+            />
+          </div>
+        ) : (
           <>
-            <ThemedButton 
-              variant="outline" 
-              onClick={() => setShowGoalSettings(true)} 
-              disabled={isLoading}
-            >
-              <Edit2 className="h-4 w-4 mr-2"/> Edit Goals
-            </ThemedButton>
-            <ThemedButton 
-              variant="outline" 
-              size="icon"
-              onClick={fetchDailyData}
-              disabled={isLoading}
-            >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            </ThemedButton>
-          </>
-        }
-      />
+            {/* Modern Header */}
+            <PageHeader 
+              className="px-0"
+              title="The Kitchen"
+              subtitle={profile.goal === 'muscle-gain' ? "Mode: Hypertrophy (Bulk)" : 
+                       profile.goal === 'fat-loss' ? "Mode: Cutting (Deficit)" : "Mode: Maintenance"}
+              actions={
+                <>
+                  <ThemedButton 
+                    variant="outline" 
+                    onClick={() => setShowAISuggestions(true)} 
+                    disabled={isLoading}
+                    className="bg-gradient-to-r from-violet-500/10 to-purple-500/10 border-violet-500/30 hover:from-violet-500/20 hover:to-purple-500/20 hover:border-violet-500/50"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2 text-violet-400"/> AI Insights
+                  </ThemedButton>
+                  <ThemedButton 
+                    variant="outline" 
+                    onClick={() => setShowGoalSettings(true)} 
+                    disabled={isLoading}
+                  >
+                    <Edit2 className="h-4 w-4 mr-2"/> Profile
+                  </ThemedButton>
+                  <ThemedButton 
+                    variant="outline" 
+                    size="icon"
+                    onClick={fetchDailyData}
+                    disabled={isLoading}
+                  >
+                    <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                  </ThemedButton>
+                </>
+              }
+            />
 
-      {/* Main Content */}
-      <div className="flex-1 px-6 pb-8">
+            {/* Main Content */}
+            <div className="flex-1 pb-8">
         {/* Tabs */}
         <Tabs defaultValue="meal" className="w-full">
-          <TabsList className="bg-card/80 backdrop-blur-xl border border-border/50 p-1.5 rounded-2xl w-full md:w-auto shadow-2xl shadow-primary/5 mb-8">
+          <TabsList className="bg-card/80 backdrop-blur-xl border border-border/50 p-1 rounded-2xl w-full md:w-auto shadow-lg shadow-black/5 mb-6">
             <ThemedTabsTrigger value="meal" icon={Utensils}>
               Meal
             </ThemedTabsTrigger>
@@ -368,33 +445,30 @@ export default function KitchenPage() {
           {/* Meal Tab Content */}
           <TabsContent value="meal" className="mt-0">
             {/* Daily/Weekly Toggle for Meal Tab */}
-            <div className="flex gap-3 w-fit mb-8">
-              <Button 
-                variant={viewMode === 'daily' ? 'default' : 'outline'} 
-                onClick={() => setViewMode('daily')} 
-                className={`font-semibold text-sm px-8 py-3 rounded-xl transition-all duration-300 ${
-                  viewMode === 'daily' 
-                    ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-xl shadow-green-500/30 ring-1 ring-green-400/20" 
-                    : "border-border/60 text-muted-foreground hover:text-foreground hover:bg-gradient-to-r hover:from-green-500/20 hover:to-emerald-500/20 hover:border-green-500/40 bg-card backdrop-blur-sm shadow-lg hover:shadow-green-500/10"
+            {/* Daily/Weekly Toggle */}
+            <div className="flex gap-2 w-fit mb-6">
+              <Button
+                onClick={() => setViewMode('daily')}
+                className={`font-semibold text-xs px-6 py-2.5 rounded-xl transition-all duration-300 ${
+                  viewMode === 'daily'
+                    ? "bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-lg shadow-violet-500/25 border-0"
+                    : "border border-border/60 text-muted-foreground hover:text-foreground bg-card/80 hover:bg-violet-500/10 hover:border-violet-500/30"
                 }`}
-                style={viewMode !== 'daily' ? {} : {}}
                 disabled={isLoading}
               >TODAY</Button>
-              <Button 
-                variant={viewMode === 'weekly' ? 'default' : 'outline'} 
-                onClick={() => setViewMode('weekly')} 
-                className={`font-semibold text-sm px-8 py-3 rounded-xl transition-all duration-300 ${
-                  viewMode === 'weekly' 
-                    ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-xl shadow-green-500/30 ring-1 ring-green-400/20" 
-                    : "border-border/60 text-muted-foreground hover:text-foreground hover:bg-gradient-to-r hover:from-green-500/20 hover:to-emerald-500/20 hover:border-green-500/40 bg-card backdrop-blur-sm shadow-lg hover:shadow-green-500/10"
+              <Button
+                onClick={() => setViewMode('weekly')}
+                className={`font-semibold text-xs px-6 py-2.5 rounded-xl transition-all duration-300 ${
+                  viewMode === 'weekly'
+                    ? "bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-lg shadow-violet-500/25 border-0"
+                    : "border border-border/60 text-muted-foreground hover:text-foreground bg-card/80 hover:bg-violet-500/10 hover:border-violet-500/30"
                 }`}
-                style={viewMode !== 'weekly' ? {} : {}}
                 disabled={isLoading}
               >WEEKLY</Button>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-              <div className="xl:col-span-7 space-y-6 order-2 xl:order-1">
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+              <div className="xl:col-span-7 space-y-5 order-2 xl:order-1">
                 <FoodSearch 
                   searchQuery={searchQuery} 
                   setSearchQuery={setSearchQuery} 
@@ -404,7 +478,7 @@ export default function KitchenPage() {
                 />
 
                 <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5 ring-1 ring-border/30">
-                  <div className="p-8 border-b border-border bg-gradient-to-r from-green-500/10 via-transparent to-emerald-500/10 rounded-t-3xl">
+                  <div className="p-8 border-b border-border bg-gradient-to-r from-violet-500/10 via-transparent to-purple-500/10 rounded-t-3xl">
                     <div className="flex justify-between items-center">
                       <h2 className="text-2xl font-bold text-foreground font-inter tracking-tight">
                         {viewMode === 'daily' ? "Today's Log" : "Weekly Overview"}
@@ -412,7 +486,7 @@ export default function KitchenPage() {
                       {viewMode === 'daily' && (
                         <Button 
                           onClick={() => setIsAddMealOpen(true)} 
-                          className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white border-0 shadow-xl shadow-green-500/30 rounded-xl font-semibold text-sm transition-all duration-300 hover:shadow-2xl hover:shadow-green-500/40 ring-1 ring-green-400/20 px-6 py-3"
+                          className="bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white border-0 shadow-xl shadow-violet-500/30 rounded-xl font-semibold text-sm transition-all duration-300 hover:shadow-2xl hover:shadow-violet-500/40 ring-1 ring-violet-400/20 px-6 py-3"
                         >
                           <Plus className="h-4 w-4 mr-2"/> Add Meal
                         </Button>
@@ -428,9 +502,9 @@ export default function KitchenPage() {
                             <div className="h-72 flex items-center justify-center text-muted-foreground">
                                 <div className="flex items-center space-x-4">
                                   <div className="flex space-x-2">
-                                    <div className="w-3 h-3 bg-green-400 rounded-full animate-bounce shadow-lg shadow-green-400/50"></div>
-                                    <div className="w-3 h-3 bg-green-400 rounded-full animate-bounce shadow-lg shadow-green-400/50" style={{animationDelay: '0.1s'}}></div>
-                                    <div className="w-3 h-3 bg-green-400 rounded-full animate-bounce shadow-lg shadow-green-400/50" style={{animationDelay: '0.2s'}}></div>
+                                    <div className="w-3 h-3 bg-violet-400 rounded-full animate-bounce shadow-lg shadow-violet-400/50"></div>
+                                    <div className="w-3 h-3 bg-violet-400 rounded-full animate-bounce shadow-lg shadow-violet-400/50" style={{animationDelay: '0.1s'}}></div>
+                                    <div className="w-3 h-3 bg-violet-400 rounded-full animate-bounce shadow-lg shadow-violet-400/50" style={{animationDelay: '0.2s'}}></div>
                                   </div>
                                   <span className="text-base font-medium">Loading meals...</span>
                                 </div>
@@ -457,7 +531,8 @@ export default function KitchenPage() {
                                             micros: meal.micros || {},
                                             isFavorite: meal.isFavorite,
                                             baseQuantity: meal.baseQuantity || 100,
-                                            quantity: meal.quantity
+                                            quantity: meal.quantity,
+                                            quantityType: meal.quantityType || 'weight'
                                           }}
                                           onFavorite={() => handleToggleFavorite(meal._id, meal.isFavorite)} 
                                           onDelete={() => handleDeleteMeal(meal._id)}
@@ -478,10 +553,10 @@ export default function KitchenPage() {
                               })}
                             </div>
                         ) : (
-                            <div className="h-72 flex flex-col items-center justify-center text-muted-foreground bg-gradient-to-br from-green-500/5 to-emerald-500/5 m-8 rounded-3xl border border-green-500/20 ring-1 ring-green-500/10">
-                                <Utensils className="h-20 w-20 mb-6 opacity-40 text-green-400" />
+                            <div className="h-72 flex flex-col items-center justify-center text-muted-foreground bg-gradient-to-br from-violet-500/5 to-purple-500/5 m-8 rounded-3xl border border-violet-500/20 ring-1 ring-violet-500/10">
+                                <Utensils className="h-20 w-20 mb-6 opacity-40 text-violet-400" />
                                 <p className="text-lg mb-3 font-semibold text-foreground">No meals logged yet.</p>
-                                <Button variant="link" onClick={() => setIsAddMealOpen(true)} className="text-green-400 hover:text-green-300 h-auto p-0 font-semibold text-base transition-all duration-300">Log your first meal</Button>
+                                <Button variant="link" onClick={() => setIsAddMealOpen(true)} className="text-violet-400 hover:text-violet-300 h-auto p-0 font-semibold text-base transition-all duration-300">Log your first meal</Button>
                             </div>
                         )}
                       </>
@@ -492,9 +567,9 @@ export default function KitchenPage() {
                           <div className="h-72 flex items-center justify-center text-muted-foreground">
                               <div className="flex items-center space-x-4">
                                 <div className="flex space-x-2">
-                                  <div className="w-3 h-3 bg-green-400 rounded-full animate-bounce shadow-lg shadow-green-400/50"></div>
-                                  <div className="w-3 h-3 bg-green-400 rounded-full animate-bounce shadow-lg shadow-green-400/50" style={{animationDelay: '0.1s'}}></div>
-                                  <div className="w-3 h-3 bg-green-400 rounded-full animate-bounce shadow-lg shadow-green-400/50" style={{animationDelay: '0.2s'}}></div>
+                                  <div className="w-3 h-3 bg-violet-400 rounded-full animate-bounce shadow-lg shadow-violet-400/50"></div>
+                                  <div className="w-3 h-3 bg-violet-400 rounded-full animate-bounce shadow-lg shadow-violet-400/50" style={{animationDelay: '0.1s'}}></div>
+                                  <div className="w-3 h-3 bg-violet-400 rounded-full animate-bounce shadow-lg shadow-violet-400/50" style={{animationDelay: '0.2s'}}></div>
                                 </div>
                                 <span className="text-base font-medium">Loading weekly data...</span>
                               </div>
@@ -508,8 +583,8 @@ export default function KitchenPage() {
                             />
                           </div>
                         ) : (
-                          <div className="h-72 flex flex-col items-center justify-center text-muted-foreground bg-gradient-to-br from-green-500/5 to-emerald-500/5 m-8 rounded-3xl border border-green-500/20 ring-1 ring-green-500/10">
-                              <BarChart3 className="h-20 w-20 mb-6 opacity-40 text-green-400" />
+                          <div className="h-72 flex flex-col items-center justify-center text-muted-foreground bg-gradient-to-br from-violet-500/5 to-purple-500/5 m-8 rounded-3xl border border-violet-500/20 ring-1 ring-violet-500/10">
+                              <BarChart3 className="h-20 w-20 mb-6 opacity-40 text-violet-400" />
                               <p className="text-lg mb-3 font-semibold text-foreground">No weekly data available.</p>
                           </div>
                         )}
@@ -519,30 +594,31 @@ export default function KitchenPage() {
                 </div>
               </div>
 
-              <div className="xl:col-span-5 space-y-6 order-1 xl:order-2">
-                  <HydrationTracker 
-                      current={hydration} 
-                      target={goals.water} 
+              {/* Right sidebar */}
+              <div className="xl:col-span-5 space-y-5 order-1 xl:order-2 xl:sticky xl:top-20 xl:self-start">
+                  <HydrationTracker
+                      current={hydration}
+                      target={goals.water}
                       onAdd={addWater}
                       viewMode={viewMode}
                       weeklyData={weeklyHydration}
                       weeklyTotal={weeklyHydration.reduce((sum, day) => sum + day.amount, 0)}
                   />
-                  <FuelGauge 
+                  <FuelGauge
                       current={viewMode === 'daily' ? (dailyStats ? {
                           calories: dailyStats.totalCalories,
                           protein: dailyStats.totalProtein,
                           carbs: dailyStats.totalCarbs,
                           fats: dailyStats.totalFats
-                      } : { calories: 0, protein: 0, carbs: 0, fats: 0 }) : (weeklyTotals || { calories: 0, protein: 0, carbs: 0, fats: 0 })} 
+                      } : { calories: 0, protein: 0, carbs: 0, fats: 0 }) : (weeklyTotals || { calories: 0, protein: 0, carbs: 0, fats: 0 })}
                       target={viewMode === 'daily' ? goals : (weeklyGoals || {
                         calories: goals.calories * 7,
                         protein: goals.protein * 7,
                         carbs: goals.carbs * 7,
                         fats: goals.fats * 7,
                         water: goals.water * 7
-                      })} 
-                      goal={profile.goal} 
+                      })}
+                      goal={profile.goal}
                       viewMode={viewMode}
                       weeklyData={weeklyData}
                   />
@@ -553,7 +629,7 @@ export default function KitchenPage() {
           {/* History Tab Content */}
           <TabsContent value="history" className="mt-0">
             <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5 ring-1 ring-border/30">
-              <div className="p-8 border-b border-border bg-gradient-to-r from-green-500/10 via-transparent to-emerald-500/10 rounded-t-3xl">
+              <div className="p-8 border-b border-border bg-gradient-to-r from-violet-500/10 via-transparent to-purple-500/10 rounded-t-3xl">
                 <h2 className="text-2xl font-bold text-foreground font-inter tracking-tight">Meal History</h2>
                 <p className="text-base text-muted-foreground mt-2">Track your nutrition journey</p>
               </div>
@@ -569,7 +645,7 @@ export default function KitchenPage() {
           {/* Analytics Tab Content */}
           <TabsContent value="analytics" className="mt-0">
             <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5 ring-1 ring-border/30">
-              <div className="p-8 border-b border-border bg-gradient-to-r from-green-500/10 via-transparent to-emerald-500/10 rounded-t-3xl">
+              <div className="p-8 border-b border-border bg-gradient-to-r from-violet-500/10 via-transparent to-purple-500/10 rounded-t-3xl">
                 <h2 className="text-2xl font-bold text-foreground font-inter tracking-tight">Nutrition Analytics</h2>
                 <p className="text-base text-muted-foreground mt-2">Insights and trends</p>
               </div>
@@ -589,6 +665,9 @@ export default function KitchenPage() {
         onClose={() => setIsAddMealOpen(false)} 
         onAdd={handleAddMeal} 
       />
+      </>
+      )}
+      </div>
     </div>
     </ProtectedLayout>
   )

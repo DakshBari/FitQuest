@@ -23,6 +23,7 @@ export interface IMeal extends Document {
   micros: IMicroNutrients;
   baseQuantity: number;
   quantity: number;
+  quantityType: 'weight' | 'units';
   isFavorite: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -97,6 +98,11 @@ const MealSchema = new Schema<IMeal>(
       type: Number,
       default: 100
     },
+    quantityType: {
+      type: String,
+      enum: ['weight', 'units'],
+      default: 'weight'
+    },
     isFavorite: {
       type: Boolean,
       default: false
@@ -111,4 +117,6 @@ const MealSchema = new Schema<IMeal>(
 MealSchema.index({ userId: 1, date: -1 });
 
 export default mongoose.model<IMeal>('Meal', MealSchema);
+
+
 

@@ -1,425 +1,573 @@
 "use client"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect, useRef } from "react"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, Save, Calendar, Dumbbell, ChevronDown, Activity, Clock, Gamepad2, Loader2 } from "lucide-react"
+import { Plus, Save, Clock, Dumbbell, Activity, Gamepad2, Loader2, X, ChevronDown, Zap } from "lucide-react"
 import { createWorkout, ExerciseSet } from "@/services/workoutService"
 import { useAuth } from "@/contexts/AuthContext"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
-const MUSCLE_GROUPS = ['Chest', 'Triceps', 'Back', 'Biceps', 'Shoulders', 'Legs', 'Core', 'Cardio'] as const;
-const WEIGHT_TYPES = [
-    { value: 'dumbbell', label: 'Dumbbell', icon: '🏋️' },
-    { value: 'barbell', label: 'Barbell', icon: '🏋️‍♂️' },
-    { value: 'bodyweight', label: 'Bodyweight', icon: '🤸' },
-    { value: 'machine', label: 'Machine', icon: '⚙️' },
-    { value: 'cable', label: 'Cable', icon: '🔗' },
-    { value: 'kettlebell', label: 'Kettlebell', icon: '🔔' },
-    { value: 'resistance_band', label: 'Resistance Band', icon: '🎗️' }
-] as const;
+const MUSCLE_GROUPS = ["Chest","Triceps","Back","Biceps","Shoulders","Legs","Core","Cardio"] as const
+
+const EQUIPMENT: { value: string; label: string }[] = [
+  { value: "barbell",         label: "Barbell"         },
+  { value: "dumbbell",        label: "Dumbbell"        },
+  { value: "bodyweight",      label: "Bodyweight"      },
+  { value: "machine",         label: "Machine"         },
+  { value: "cable",           label: "Cable"           },
+  { value: "kettlebell",      label: "Kettlebell"      },
+  { value: "resistance_band", label: "Resistance Band" },
+]
+
+// Single accent color — violet
+const ACCENT = "#8b5cf6"
+
+const RPE_LABELS: Record<number, string> = {
+  1:"Very Easy", 2:"Easy", 3:"Light", 4:"Moderate", 5:"Moderate+",
+  6:"Hard", 7:"Hard+", 8:"Very Hard", 9:"Near Max", 10:"Max Effort"
+}
+
+// Animated number counter
+function AnimNum({ val, className }: { val: number; className?: string }) {
+  const [disp, setDisp] = useState(0)
+  const prev = useRef(0)
+  const raf  = useRef<number>(0)
+  useEffect(() => {
+    const s = prev.current, d = val - s, t0 = performance.now()
+    const tick = (now: number) => {
+      const t = Math.min((now - t0) / 600, 1)
+      const e = 1 - Math.pow(1 - t, 3)
+      const n = s + d * e
+      setDisp(n); prev.current = n
+      if (t < 1) raf.current = requestAnimationFrame(tick)
+    }
+    raf.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf.current)
+  }, [val])
+  return <span className={className}>{Math.round(disp).toLocaleString()}</span>
+}
+
+// Live real-time clock (HH:MM:SS)
+function LiveClock() {
+  const fmt = () => {
+    const n = new Date()
+    return [
+      String(n.getHours()).padStart(2, "0"),
+      String(n.getMinutes()).padStart(2, "0"),
+      String(n.getSeconds()).padStart(2, "0"),
+    ].join(":")
+  }
+  const [time, setTime] = useState(fmt)
+  useEffect(() => {
+    const id = setInterval(() => setTime(fmt()), 1000)
+    return () => clearInterval(id)
+  }, [])
+  return <span className="tabular-nums font-mono">{time}</span>
+}
 
 export function WorkoutForm({ onSave, onSwitchMode }: { onSave: () => void; onSwitchMode?: () => void }) {
-    const { isAuthenticated } = useAuth()
-    const [isLoading, setIsLoading] = useState(false)
-    
-    // Form state
-    const [exercise, setExercise] = useState("")
-    const [muscleGroup, setMuscleGroup] = useState<string>("Chest")
-    const [weightType, setWeightType] = useState<string>("dumbbell")
-    const [workoutTime, setWorkoutTime] = useState(() => {
-        const now = new Date()
-        return now.toTimeString().slice(0, 5) // HH:MM format
-    })
-    const [sets, setSets] = useState<ExerciseSet[]>([])
-    const [currentSet, setCurrentSet] = useState<ExerciseSet>({ reps: 0, weight: 0, unit: "kg" })
-    const [rpe, setRpe] = useState(7)
-    const [restTime, setRestTime] = useState("")
-    const [notes, setNotes] = useState("")
+  const { isAuthenticated } = useAuth()
+  const [isLoading,    setIsLoading]    = useState(false)
+  const [exercise,     setExercise]     = useState("")
+  const [muscleGroup,  setMuscleGroup]  = useState<string>("Chest")
+  const [weightType,   setWeightType]   = useState<string>("barbell")
+  const [workoutTime,  setWorkoutTime]  = useState(() => new Date().toTimeString().slice(0, 5))
+  const [sets,         setSets]         = useState<ExerciseSet[]>([])
+  const [current,      setCurrent]      = useState<ExerciseSet>({ reps: 0, weight: 0, unit: "kg" })
+  const [rpe,          setRpe]          = useState(7)
+  const [restTime,     setRestTime]     = useState("")
+  const [notes,        setNotes]        = useState("")
+  const [sessionActive,setSessionActive]= useState(false)
 
-    const handleAddSet = () => {
-        if (currentSet.reps > 0 && currentSet.weight >= 0) {
-            setSets([...sets, currentSet])
-            setCurrentSet({ reps: 0, weight: 0, unit: currentSet.unit })
-        }
+  // ──────────────────────────────────────────────────────────────────────
+  // FIX: Dynamic Color Logic
+  // Text/Borders: Matches the color at the "tip" of the current RPE
+  const rpeColor = rpe <= 3 
+    ? "#10b981"  // Green (Warmup)
+    : rpe <= 5 
+    ? "#eab308"  // Yellow (Moderate)
+    : rpe <= 7 
+    ? "#f97316"  // Orange (Hard)
+    : "#8b5cf6"  // Violet (Max Effort)
+
+  // Gradient: Expands as RPE increases.
+  // 1-3: Blue -> Green
+  // 4-5: Blue -> Green -> Yellow
+  // 6-7: ... -> Orange
+  // 8-10: ... -> Violet
+  const getIntensityGradient = (val: number) => {
+    if (val <= 3) return "linear-gradient(to right, #3b82f6, #10b981)"
+    if (val <= 5) return "linear-gradient(to right, #3b82f6, #10b981, #eab308)"
+    if (val <= 7) return "linear-gradient(to right, #3b82f6, #10b981, #eab308, #f97316)"
+    return "linear-gradient(to right, #3b82f6, #10b981, #eab308, #f97316, #8b5cf6)"
+  }
+  // ──────────────────────────────────────────────────────────────────────
+
+  const totalVol  = sets.reduce((s, x) => s + x.reps * x.weight, 0)
+  const totalReps = sets.reduce((s, x) => s + x.reps, 0)
+  const canSave   = !isLoading && exercise.trim() && sets.length > 0 && (sets.length <= 1 || restTime.trim())
+
+  const handleAddSet = () => {
+    if (current.reps > 0 && current.weight >= 0) {
+      setSets(prev => [...prev, current])
+      setCurrent({ reps: 0, weight: 0, unit: current.unit })
+      if (!sessionActive) setSessionActive(true)
     }
+  }
 
-    const handleRemoveSet = (index: number) => {
-        setSets(sets.filter((_, i) => i !== index))
+  const handleKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleAddSet()
+  }
+
+  const handleSave = async () => {
+    if (!isAuthenticated)                    { toast.error("Please log in"); return }
+    if (!exercise.trim())                    { toast.error("Enter an exercise name"); return }
+    if (sets.length === 0)                   { toast.error("Add at least one set"); return }
+    if (sets.length > 1 && !restTime.trim()) { toast.error("Rest time required for multiple sets"); return }
+
+    setIsLoading(true)
+    try {
+      const parseRest = (s: string) => {
+        if (!s) return 0
+        const m = s.match(/(\d+)\s*(s|sec|seconds?|m|min|minutes?)?/i)
+        if (!m) return 60
+        return m[2]?.toLowerCase().startsWith("m") ? parseInt(m[1]) * 60 : parseInt(m[1])
+      }
+      const restSec = parseRest(restTime.trim())
+      const base = new Date()
+      const [h, min] = workoutTime.split(":").map(Number)
+      base.setHours(h, min, 0, 0)
+      let xp = 0
+      for (let i = 0; i < sets.length; i++) {
+        const d = new Date(base.getTime() + i * restSec * 1000)
+        const res = await createWorkout({
+          exercise: exercise.trim(), muscleGroup,
+          weightType: weightType as any,
+          sets: [sets[i]], rpe,
+          restTime: i < sets.length - 1 ? restTime.trim() : undefined,
+          notes: i === 0 ? notes.trim() || undefined : `Set ${i + 1}`,
+          date: d.toISOString(),
+        })
+        if (res.xpGained) xp += res.xpGained
+      }
+      toast.success(`${sets.length} set${sets.length > 1 ? "s" : ""} logged${xp ? ` · +${xp} XP` : ""}`)
+      setExercise(""); setMuscleGroup("Chest"); setWeightType("barbell")
+      setWorkoutTime(new Date().toTimeString().slice(0, 5))
+      setSets([]); setCurrent({ reps: 0, weight: 0, unit: "kg" })
+      setRpe(7); setRestTime(""); setNotes(""); setSessionActive(false)
+      onSave()
+    } catch (e: any) {
+      toast.error(e.message || "Failed to save")
+    } finally {
+      setIsLoading(false)
     }
+  }
 
-    const handleSaveWorkout = async () => {
-        if (!isAuthenticated) {
-            toast.error("Please log in to save workouts")
-            return
-        }
+  return (
+    <div className="rounded-3xl border border-border/50 bg-card overflow-hidden shadow-sm">
 
-        if (!exercise.trim()) {
-            toast.error("Please enter an exercise name")
-            return
-        }
+      {/* ── Intensity header strip ──────────────────────────────────── */}
+      <div className="relative px-6 py-5 border-b border-border/50 overflow-hidden">
+        {/* Accent color left bar — always red */}
+        <div
+          className="absolute left-0 top-0 bottom-0 w-1"
+          style={{ background: ACCENT }}
+        />
+        {/* Faint red background tint */}
+        <div
+          className="absolute inset-0 opacity-[0.03] pointer-events-none"
+          style={{ background: `radial-gradient(ellipse at left, ${ACCENT}, transparent 70%)` }}
+        />
 
-        if (sets.length === 0) {
-            toast.error("Please add at least one set")
-            return
-        }
-
-        // Make rest time mandatory for multiple sets
-        if (sets.length > 1 && !restTime.trim()) {
-            toast.error("Rest time is required when logging multiple sets")
-            return
-        }
-
-        setIsLoading(true)
-        try {
-            // Parse rest time to seconds for calculation
-            const parseRestTime = (restTimeStr: string): number => {
-                if (!restTimeStr) return 0
-                const match = restTimeStr.match(/(\d+)\s*(s|sec|seconds?|m|min|minutes?)?/i)
-                if (!match) return 60 // Default to 60 seconds if can't parse
-                
-                const value = parseInt(match[1])
-                const unit = match[2]?.toLowerCase() || 's'
-                
-                if (unit.startsWith('m')) return value * 60 // minutes to seconds
-                return value // seconds
-            }
-
-            const restTimeSeconds = parseRestTime(restTime.trim())
-            
-            // Create base date with custom time
-            const baseDate = new Date()
-            const [hours, minutes] = workoutTime.split(':').map(Number)
-            baseDate.setHours(hours, minutes, 0, 0)
-            
-            let totalXpGained = 0
-
-            // Create separate workout logs for each set with time intervals
-            for (let i = 0; i < sets.length; i++) {
-                const setDate = new Date(baseDate.getTime() + (i * restTimeSeconds * 1000))
-                
-                const workoutData = {
-                    exercise: exercise.trim(),
-                    muscleGroup,
-                    weightType: weightType as 'dumbbell' | 'barbell' | 'bodyweight' | 'machine' | 'cable' | 'kettlebell' | 'resistance_band',
-                    sets: [sets[i]], // Single set per workout log
-                    rpe,
-                    restTime: i < sets.length - 1 ? restTime.trim() : undefined, // No rest time for last set
-                    notes: i === 0 ? notes.trim() || undefined : `Set ${i + 1}${notes.trim() ? ` - ${notes.trim()}` : ''}`,
-                    date: setDate.toISOString()
-                }
-
-                const response = await createWorkout(workoutData)
-                if (response.xpGained) {
-                    totalXpGained += response.xpGained
-                }
-            }
-            
-            toast.success(`${sets.length} sets saved as separate logs! ${totalXpGained ? `+${totalXpGained} XP earned!` : ''}`)
-            
-            // Reset form
-            setExercise("")
-            setMuscleGroup("Chest")
-            setWeightType("dumbbell")
-            setWorkoutTime(() => {
-                const now = new Date()
-                return now.toTimeString().slice(0, 5)
-            })
-            setSets([])
-            setCurrentSet({ reps: 0, weight: 0, unit: "kg" })
-            setRpe(7)
-            setRestTime("")
-            setNotes("")
-            
-            onSave()
-        } catch (error: any) {
-            toast.error(error.message || "Failed to save workout")
-        } finally {
-            setIsLoading(false)
-        }
-    }
-
-    return (
-        <div className="w-full">
-            <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5 p-6 md:p-8 lg:p-10">
-                
-                {/* A. Header & Muscle Group */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 pb-6 border-b border-border">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center shadow-lg shadow-red-500/25">
-                            <Dumbbell className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                            <h3 className="text-2xl font-bold text-foreground font-inter tracking-tight">Workout Logger</h3>
-                            <p className="text-sm text-muted-foreground mt-1">Track your progress and PRs</p>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto">
-                        {/* Muscle Group Selector */}
-                        <div className="flex items-center gap-2 w-full md:w-auto">
-                            <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider hidden md:block">Target</span>
-                            <div className="relative">
-                                <select 
-                                    value={muscleGroup}
-                                    onChange={(e) => setMuscleGroup(e.target.value)}
-                                    className="appearance-none bg-background/50 border border-border text-foreground px-4 py-2.5 pr-8 rounded-xl text-sm focus:ring-2 focus:ring-red-500/50 font-medium shadow-sm cursor-pointer transition-all w-full md:w-64 backdrop-blur-sm"
-                                >
-                                    {MUSCLE_GROUPS.map(group => (
-                                        <option key={group} value={group}>{group}</option>
-                                    ))}
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                            </div>
-                        </div>
-
-                        {/* Mode Toggle Button - Top Right */}
-                        {onSwitchMode && (
-                            <Button
-                                onClick={onSwitchMode}
-                                variant="outline"
-                                className="border-border/50 text-muted-foreground hover:text-foreground hover:bg-gradient-to-r hover:from-red-500/20 hover:to-orange-500/20 hover:border-red-500/30 bg-background/30 backdrop-blur-sm font-medium rounded-xl transition-all duration-200 whitespace-nowrap"
-                            >
-                                <Gamepad2 className="h-4 w-4 mr-2"/> Switch to Learn / Game Mode
-                            </Button>
-                        )}
-                    </div>
-                </div>
-
-                {/* B. Main Form Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
-                    
-                    {/* B.1 Exercise Name (Spans 4 cols) */}
-                    <div className="lg:col-span-4">
-                        <Label className="text-foreground font-medium mb-2 block">Exercise Name</Label>
-                        <div className="relative">
-                            <Input 
-                                value={exercise}
-                                onChange={(e) => setExercise(e.target.value)}
-                                placeholder="e.g. Incline Dumbbell Press" 
-                                className="pl-10 bg-background/50 border-border focus-visible:ring-2 focus-visible:ring-red-500/50 transition-all text-base h-12 backdrop-blur-sm"
-                            />
-                            <Activity className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        </div>
-                    </div>
-
-                    {/* B.1.5 Weight Type (Spans 2 cols) */}
-                    <div className="lg:col-span-2">
-                        <Label className="text-foreground font-medium mb-2 block">Weight Type</Label>
-                        <div className="relative">
-                            <select 
-                                value={weightType}
-                                onChange={(e) => setWeightType(e.target.value)}
-                                className="appearance-none bg-background/50 border border-border text-foreground px-4 py-2.5 pr-8 rounded-xl text-sm focus:ring-2 focus:ring-red-500/50 font-medium shadow-sm cursor-pointer transition-all w-full h-12 backdrop-blur-sm"
-                            >
-                                {WEIGHT_TYPES.map(type => (
-                                    <option key={type.value} value={type.value}>
-                                        {type.icon} {type.label}
-                                    </option>
-                                ))}
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                        </div>
-                    </div>
-
-                    {/* B.2 Reps (Spans 2 cols) */}
-                    <div className="lg:col-span-2">
-                        <Label className="text-foreground font-medium mb-2 block">Reps</Label>
-                        <Input 
-                            type="number" 
-                            value={currentSet.reps || ''}
-                            onChange={(e) => setCurrentSet({...currentSet, reps: parseInt(e.target.value) || 0})}
-                            placeholder="12" 
-                            className="bg-background/50 border-border focus-visible:ring-2 focus-visible:ring-red-500/50 text-lg font-mono text-center h-12 backdrop-blur-sm" 
-                        />
-                    </div>
-
-                    {/* B.3 Weight & Unit (Spans 4 cols) */}
-                    <div className="lg:col-span-4">
-                        <Label className="text-foreground font-medium mb-2 block">
-                            Weight {weightType === 'bodyweight' ? '(Additional)' : ''}
-                        </Label>
-                        <div className="flex gap-2">
-                            <Input 
-                                type="number" 
-                                value={currentSet.weight || ''}
-                                onChange={(e) => setCurrentSet({...currentSet, weight: parseFloat(e.target.value) || 0})}
-                                placeholder={weightType === 'bodyweight' ? '0' : '20'} 
-                                className="bg-background/50 border-border focus-visible:ring-2 focus-visible:ring-red-500/50 text-lg font-mono flex-1 h-12 backdrop-blur-sm" 
-                            />
-                            <select 
-                                value={currentSet.unit}
-                                onChange={(e) => setCurrentSet({...currentSet, unit: e.target.value as 'kg' | 'lb'})}
-                                className="bg-background/50 border border-border text-foreground rounded-xl px-4 py-2 h-12 text-sm font-medium focus:ring-2 focus:ring-red-500/50 cursor-pointer transition-all backdrop-blur-sm"
-                            >
-                                <option value="kg">KG</option>
-                                <option value="lb">LB</option>
-                            </select>
-                        </div>
-                        {weightType === 'bodyweight' && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                                Enter 0 for bodyweight only, or add additional weight
-                            </p>
-                        )}
-                    </div>
-                </div>
-
-                {/* Sets Display & Add Set Button */}
-                <div className="mb-6 flex items-center justify-between p-4 bg-gradient-to-r from-red-500/10 to-orange-500/10 rounded-xl border border-red-500/20 backdrop-blur-sm">
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-muted-foreground">Sets Logged:</span>
-                            <span className="text-2xl font-bold text-red-500 font-inter">{sets.length}</span>
-                        </div>
-                        {sets.length > 0 && (
-                            <div className="text-sm text-muted-foreground">
-                                Latest: {sets[sets.length - 1].reps} reps × {sets[sets.length - 1].weight} {sets[sets.length - 1].unit}
-                            </div>
-                        )}
-                    </div>
-                    <Button 
-                        variant="ghost" 
-                        onClick={handleAddSet} 
-                        disabled={currentSet.reps === 0}
-                        className="bg-background/50 hover:bg-background/80 text-red-500 border border-red-500/30 disabled:opacity-50 rounded-xl backdrop-blur-sm"
-                    >
-                        <Plus className="w-4 h-4 mr-2"/> Add Set
-                    </Button>
-                </div>
-
-                {/* Sets List */}
-                {sets.length > 0 && (
-                    <div className="mb-6 space-y-2">
-                        <Label className="text-foreground font-medium">Completed Sets</Label>
-                        <div className="space-y-2 max-h-32 overflow-y-auto">
-                            {sets.map((set, index) => (
-                                <div key={index} className="flex items-center justify-between p-3 bg-background/50 rounded-xl border border-border backdrop-blur-sm">
-                                    <span className="text-sm font-medium text-foreground">
-                                        Set {index + 1}: {set.reps} reps × {set.weight} {set.unit}
-                                    </span>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleRemoveSet(index)}
-                                        className="text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg"
-                                    >
-                                        Remove
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+        <div className="flex items-center justify-between relative z-10">
+          <div className="flex items-center gap-4">
+            <div>
+              <h2 className="text-xl font-bold tracking-tight text-foreground">
+                Workout Logger
+              </h2>
+              <div className="flex items-center gap-3 mt-0.5">
+                <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Clock className="w-3 h-3" />
+                  <LiveClock />
+                </span>
+                {sessionActive && (
+                  <span
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide bg-violet-500/15 text-violet-500"
+                  >
+                    Active
+                  </span>
                 )}
-
-                {/* C. Session Metadata (Full Width) */}
-                <div className="space-y-6 pt-6 border-t border-border">
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                         <div className="lg:col-span-2">
-                            <div className="flex items-center gap-2 mb-2">
-                                <Calendar className="w-4 h-4 text-muted-foreground" />
-                                <Label className="text-foreground font-medium">Date</Label>
-                            </div>
-                            <div className="bg-background/50 border border-border rounded-xl px-4 py-3 text-sm text-foreground font-medium shadow-sm backdrop-blur-sm">
-                                {new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
-                            </div>
-                         </div>
-                         <div className="lg:col-span-2">
-                            <div className="flex items-center gap-2 mb-2">
-                                <Clock className="w-4 h-4 text-muted-foreground" />
-                                <Label className="text-foreground font-medium">Time</Label>
-                            </div>
-                            <Input 
-                                type="time" 
-                                value={workoutTime}
-                                onChange={(e) => setWorkoutTime(e.target.value)}
-                                className="bg-background/50 border-border focus-visible:ring-2 focus-visible:ring-red-500/50 text-base h-12 font-mono backdrop-blur-sm" 
-                            />
-                         </div>
-                         <div className="lg:col-span-3">
-                             <div className="flex items-center gap-2 mb-2">
-                                <Activity className="w-4 h-4 text-red-500" />
-                                <Label className="text-foreground font-medium">RPE (Effort 1-10)</Label>
-                            </div>
-                            <div className="flex gap-1 items-center bg-background/50 rounded-xl p-1.5 border border-border backdrop-blur-sm">
-                                {[1,2,3,4,5,6,7,8,9,10].map((n) => (
-                                    <button 
-                                        key={n}
-                                        onClick={() => setRpe(n)}
-                                        className={`flex-1 h-10 rounded-lg text-sm font-bold transition-all ${
-                                            rpe === n 
-                                                ? "bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-md scale-105" 
-                                                : "bg-background/50 text-muted-foreground hover:bg-background/80"
-                                        }`}
-                                    >
-                                        {n}
-                                    </button>
-                                ))}
-                            </div>
-                         </div>
-                         <div className="lg:col-span-5">
-                            <div className="flex items-center gap-2 mb-2">
-                                <Clock className="w-4 h-4 text-muted-foreground" />
-                                <Label className="text-foreground font-medium">
-                                    Rest Time {sets.length > 1 ? '(Required for multiple sets)' : '(Optional)'}
-                                </Label>
-                            </div>
-                            <Input 
-                                type="text" 
-                                value={restTime}
-                                onChange={(e) => setRestTime(e.target.value)}
-                                placeholder="e.g. 90s, 2min, 120" 
-                                className={`bg-background/50 border-border focus-visible:ring-2 focus-visible:ring-red-500/50 text-base h-12 backdrop-blur-sm ${
-                                    sets.length > 1 && !restTime.trim() ? 'border-red-500' : ''
-                                }`}
-                                required={sets.length > 1}
-                            />
-                            {sets.length > 1 && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    Time between sets (e.g., 90s, 2min, 120)
-                                </p>
-                            )}
-                         </div>
-                    </div>
-                    <div>
-                        <Label className="text-foreground font-medium mb-2 block">Tempo / Notes</Label>
-                        <Textarea 
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                            placeholder="Additional notes, tempo cues, or form reminders..." 
-                            className="bg-background/50 border-border resize-none h-28 text-sm focus-visible:ring-2 focus-visible:ring-red-500/50 w-full backdrop-blur-sm"
-                        />
-                    </div>
-                </div>
-
-                {/* D. Actions (Sticky Bottom) */}
-                <div className="flex flex-col sm:flex-row gap-4 mt-8 pt-6 border-t border-border">
-                     <Button 
-                        variant="outline" 
-                        className="flex-1 border-border/50 text-muted-foreground hover:text-foreground hover:bg-gradient-to-r hover:from-red-500/20 hover:to-orange-500/20 hover:border-red-500/30 h-12 text-base bg-background/30 backdrop-blur-sm shadow-sm rounded-xl transition-all duration-200" 
-                        onClick={handleAddSet}
-                        disabled={currentSet.reps === 0}
-                    >
-                        <Plus className="h-5 w-5 mr-2"/> Add Another Set
-                    </Button>
-                    <Button 
-                        className="flex-1 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-bold h-12 text-base shadow-lg shadow-red-500/25 disabled:opacity-50 rounded-xl transition-all duration-200" 
-                        onClick={handleSaveWorkout}
-                        disabled={isLoading || !exercise.trim() || sets.length === 0 || (sets.length > 1 && !restTime.trim())}
-                    >
-                        {isLoading ? (
-                            <>
-                                <Loader2 className="h-5 w-5 mr-2 animate-spin"/> Saving...
-                            </>
-                        ) : (
-                            <>
-                                <Save className="h-5 w-5 mr-2"/> Save Workout
-                            </>
-                        )}
-                    </Button>
-                </div>
+              </div>
             </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Muscle group pill selector */}
+            <div className="relative">
+              <select
+                value={muscleGroup}
+                onChange={e => setMuscleGroup(e.target.value)}
+                className="appearance-none text-xs font-semibold bg-muted/30 border border-border/50 text-foreground pl-3 pr-7 py-2 rounded-xl cursor-pointer focus:outline-none focus:ring-1 focus:ring-border"
+              >
+                {MUSCLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
+            </div>
+
+            {onSwitchMode && (
+              <button
+                onClick={onSwitchMode}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border/50 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+              >
+                <Gamepad2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Learn / Game</span>
+              </button>
+            )}
+          </div>
         </div>
-    )
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px]">
+
+        {/* ── Left: inputs ─────────────────────────────────────────── */}
+        <div className="p-6 space-y-6 border-r border-border/40">
+
+          {/* Exercise name — large and prominent */}
+          <div>
+            <label className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60 block mb-1.5">
+              Exercise Name
+            </label>
+            <div className="relative">
+              <input
+                value={exercise}
+                onChange={e => setExercise(e.target.value)}
+                placeholder="e.g. Bench Press"
+                className="w-full bg-transparent border-0 border-b-2 border-border/40 focus:border-violet-500 outline-none text-2xl font-bold text-foreground placeholder:text-muted-foreground/25 placeholder:font-normal pb-2 transition-colors duration-200"
+                style={{ borderBottomColor: exercise ? rpeColor + "80" : undefined }}
+              />
+            </div>
+          </div>
+
+          {/* Equipment chips */}
+          <div>
+            <label className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60 block mb-2">
+              Equipment
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {EQUIPMENT.map(eq => {
+                const active = weightType === eq.value
+                return (
+                  <button
+                    key={eq.value}
+                    onClick={() => setWeightType(eq.value)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all duration-150",
+                      active
+                        ? "bg-violet-500/10 border-violet-500/30 text-violet-500"
+                        : "border-border/40 text-muted-foreground hover:text-foreground hover:border-border/70 bg-transparent"
+                    )}
+                  >
+                    {eq.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Set builder row */}
+          <div>
+            <label className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60 block mb-2">
+              Log Set
+            </label>
+            <div className="flex items-stretch gap-2">
+              {/* Reps */}
+              <div className="flex-1">
+                <div className="text-[9px] text-muted-foreground/50 text-center mb-1">REPS</div>
+                <input
+                  type="number"
+                  value={current.reps || ""}
+                  onChange={e => setCurrent({ ...current, reps: parseInt(e.target.value) || 0 })}
+                  onKeyDown={handleKey}
+                  placeholder="0"
+                  className="w-full h-14 rounded-xl border border-border/50 bg-muted/10 text-center text-2xl font-black tabular-nums text-foreground focus:outline-none focus:ring-1 focus:ring-violet-500/40 focus:border-violet-500/50 transition-colors"
+                />
+              </div>
+              {/* × divider */}
+              <div className="flex items-center justify-center text-muted-foreground/30 font-thin text-2xl self-end pb-2">×</div>
+              {/* Weight */}
+              <div className="flex-1">
+                <div className="text-[9px] text-muted-foreground/50 text-center mb-1">WEIGHT</div>
+                <input
+                  type="number"
+                  value={current.weight || ""}
+                  onChange={e => setCurrent({ ...current, weight: parseFloat(e.target.value) || 0 })}
+                  onKeyDown={handleKey}
+                  placeholder="0"
+                  className="w-full h-14 rounded-xl border border-border/50 bg-muted/10 text-center text-2xl font-black tabular-nums text-foreground focus:outline-none focus:ring-1 focus:ring-violet-500/40 focus:border-violet-500/50 transition-colors"
+                />
+              </div>
+              {/* Unit toggle */}
+              <div className="flex flex-col justify-end gap-0.5">
+                {(["kg", "lb"] as const).map(u => (
+                  <button
+                    key={u}
+                    onClick={() => setCurrent({ ...current, unit: u })}
+                    className={cn(
+                      "px-2.5 py-1 rounded-md text-[10px] font-bold transition-all",
+                      current.unit === u
+                        ? "text-white"
+                        : "text-muted-foreground/50 hover:text-muted-foreground"
+                    )}
+                    style={current.unit === u ? { background: ACCENT } : {}}
+                  >
+                    {u.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+              {/* Add set button */}
+              <button
+                onClick={handleAddSet}
+                disabled={current.reps === 0}
+                className={cn(
+                  "h-14 px-5 rounded-xl flex items-center gap-2 text-sm font-bold transition-all duration-150 border self-end",
+                  current.reps > 0
+                    ? "bg-violet-500 text-white border-transparent shadow-sm shadow-violet-500/20 hover:bg-violet-600"
+                    : "border-border/30 text-muted-foreground/30 bg-muted/10 cursor-not-allowed"
+                )}
+              >
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:block">Add Set</span>
+              </button>
+            </div>
+            <p className="text-[10px] text-muted-foreground/40 mt-1.5">Press Enter to add</p>
+          </div>
+
+          {/* RPE — colored spectrum strip */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60">
+                RPE — Perceived Effort
+              </label>
+              <span className="text-[10px] font-semibold text-violet-500">
+                {rpe}/10 · {RPE_LABELS[rpe]}
+              </span>
+            </div>
+            <div className="flex gap-1">
+              {Array.from({ length: 10 }, (_, i) => i + 1).map(n => {
+                const active = rpe === n
+                return (
+                  <button
+                    key={n}
+                    onClick={() => setRpe(n)}
+                    className="flex-1 rounded-lg transition-all duration-100 relative"
+                    style={{
+                      height: active ? 36 : 28,
+                      background: active ? ACCENT : `${ACCENT}20`,
+                      border: `1px solid ${active ? ACCENT : ACCENT + "35"}`,
+                      marginTop: active ? 0 : 4,
+                    }}
+                  >
+                    {/* Text color logic: Active = White, Inactive = Red/70 */}
+                    <span className={cn(
+                      "text-[9px] font-black transition-colors", 
+                      active ? "text-white" : "text-violet-500/70"
+                    )}>
+                      {n}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Time + Rest side by side */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60 block mb-1.5">
+                Start Time
+              </label>
+              <div className="relative">
+                <input
+                  type="time"
+                  value={workoutTime}
+                  onChange={e => setWorkoutTime(e.target.value)}
+                  className="w-full h-10 rounded-xl border border-border/50 bg-muted/10 px-3 pl-9 text-sm font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-border transition-colors"
+                />
+                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
+              </div>
+            </div>
+            <div>
+              <label className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60 block mb-1.5 flex items-center justify-between">
+                <span>Rest Period</span>
+                {sets.length > 1 && !restTime && <span className="text-violet-500 normal-case font-normal">Required</span>}
+              </label>
+              <input
+                type="text"
+                value={restTime}
+                onChange={e => setRestTime(e.target.value)}
+                placeholder="90s · 2min"
+                className={cn(
+                  "w-full h-10 rounded-xl border bg-muted/10 px-3 text-sm text-foreground focus:outline-none focus:ring-1 transition-colors placeholder:text-muted-foreground/30",
+                  sets.length > 1 && !restTime.trim()
+                    ? "border-violet-500/50 focus:ring-violet-500/30"
+                    : "border-border/50 focus:ring-border"
+                )}
+              />
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60 block mb-1.5">
+              Notes / Cues
+            </label>
+            <Textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Tempo, form reminders, how it felt…"
+              className="bg-muted/10 border-border/50 resize-none h-16 text-sm focus-visible:ring-1 focus-visible:ring-border rounded-xl placeholder:text-muted-foreground/30"
+            />
+          </div>
+        </div>
+
+        {/* ── Right: live stats + sets ─────────────────────────────── */}
+        <div className="flex flex-col bg-muted/5">
+
+          {/* Live stats strip */}
+          <div className="grid grid-cols-3 divide-x divide-border/40 border-b border-border/40">
+            {[
+              { label: "Sets",   value: sets.length,    unit: ""      },
+              { label: "Reps",   value: totalReps,      unit: ""      },
+              { label: "Volume", value: totalVol,       unit: current.unit },
+            ].map(s => (
+              <div key={s.label} className="flex flex-col items-center justify-center py-4 gap-0.5">
+                <AnimNum val={s.value} className="text-2xl font-black tabular-nums text-foreground" />
+                {s.unit && <span className="text-[9px] text-muted-foreground/50">{s.unit}</span>}
+                <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/50 mt-0.5">
+                  {s.label}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Intensity bar */}
+          <div className="px-4 py-3 border-b border-border/40">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">Intensity</span>
+              <span className="text-[9px] font-semibold" style={{ color: rpeColor }}>RPE {rpe}</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-muted/20 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{
+                  width: `${rpe * 10}%`,
+                  // UPDATED: Uses the dynamic gradient function
+                  background: getIntensityGradient(rpe),
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Sets log */}
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+              <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                Set Log
+              </span>
+              {sets.length > 0 && (
+                <span className="text-[9px] text-muted-foreground/40">{sets.length} set{sets.length !== 1 ? "s" : ""}</span>
+              )}
+            </div>
+
+            {sets.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center gap-2 py-8">
+                <div className="w-10 h-10 rounded-2xl bg-muted/20 flex items-center justify-center">
+                  <Dumbbell className="w-4 h-4 text-muted-foreground/30" />
+                </div>
+                <p className="text-xs text-muted-foreground/40 text-center px-6">
+                  Add sets above to start building your session
+                </p>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-1.5 max-h-[320px]">
+                {sets.map((s, i) => {
+                  const setVol = s.reps * s.weight
+                  return (
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border/30 bg-card hover:border-border/60 transition-colors group"
+                    >
+                      {/* Set number badge */}
+                      <div
+                        className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black text-white flex-shrink-0"
+                        style={{ background: ACCENT }}
+                      >
+                        {i + 1}
+                      </div>
+                      {/* Reps × Weight */}
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-bold tabular-nums text-foreground">
+                          {s.reps}
+                        </span>
+                        <span className="text-xs text-muted-foreground/50 mx-1">×</span>
+                        <span className="text-sm font-bold tabular-nums text-foreground">
+                          {s.weight}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground/50 ml-0.5">{s.unit}</span>
+                      </div>
+                      {/* Volume per set */}
+                      <span className="text-[10px] text-muted-foreground/40 tabular-nums flex-shrink-0">
+                        {setVol}{s.unit}
+                      </span>
+                      {/* Remove */}
+                      <button
+                        onClick={() => setSets(prev => prev.filter((_, idx) => idx !== i))}
+                        className="w-5 h-5 rounded-md flex items-center justify-center text-muted-foreground/20 hover:text-violet-400 hover:bg-violet-500/10 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Save CTA */}
+          <div className="p-4 border-t border-border/40">
+            <button
+              onClick={handleSave}
+              disabled={!canSave}
+              className={cn(
+                "w-full h-12 rounded-xl flex items-center justify-center gap-2.5 text-sm font-bold transition-all duration-200",
+                canSave
+                  ? "text-white shadow-md"
+                  : "bg-muted/10 border border-border/30 text-muted-foreground/30 cursor-not-allowed"
+              )}
+              style={canSave ? {
+                background: "linear-gradient(135deg, #7c3aed, #8b5cf6)",
+                boxShadow: "0 4px 16px #8b5cf635",
+              } : {}}
+            >
+              {isLoading ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
+              ) : (
+                <>
+                  <Zap className="w-4 h-4" />
+                  Complete Session
+                  {sets.length > 0 && (
+                    <span className="text-[10px] font-normal opacity-70 ml-1">
+                      · {sets.length} set{sets.length !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }

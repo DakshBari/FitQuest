@@ -184,7 +184,7 @@ export function Header() {
             // Logged Out -> Show Login Button
             <Button 
               onClick={() => router.push('/login')}
-              className="bg-[#00BBA7] hover:bg-[#009688] text-white font-medium"
+              className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-white font-medium"
             >
               Login
             </Button>

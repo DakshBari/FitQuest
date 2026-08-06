@@ -111,20 +111,29 @@ router.get('/friends', async (req: AuthRequest, res, next) => {
         { recipient: req.user._id, status: 'accepted' }
       ]
     })
-    .populate('requester', 'username avatar level xp isOnline')
-    .populate('recipient', 'username avatar level xp isOnline');
+    .populate('requester', 'username avatar level xp isOnline lastSeen')
+    .populate('recipient', 'username avatar level xp isOnline lastSeen');
+
+    // A user is "online" if their lastSeen is within the last 5 minutes
+    const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
+    const now = Date.now();
 
     const friends = friendships.map(friendship => {
       const friend = friendship.requester._id.toString() === req.user._id.toString()
         ? friendship.recipient
         : friendship.requester;
+
+      const lastSeen = friend.lastSeen ? new Date(friend.lastSeen).getTime() : 0;
+      const isOnline = friend.isOnline && (now - lastSeen < ONLINE_THRESHOLD_MS);
+
       return {
         id: friend._id,
         name: friend.username,
         avatar: friend.avatar || friend.username.substring(0, 2).toUpperCase(),
         level: friend.level,
         xp: friend.xp,
-        online: friend.isOnline
+        online: isOnline,
+        lastSeen: friend.lastSeen
       };
     });
 
@@ -136,6 +145,7 @@ router.get('/friends', async (req: AuthRequest, res, next) => {
     next(error);
   }
 });
+
 
 // @route   POST /api/guilds/friends/request
 // @desc    Send friend request
@@ -386,3 +396,4 @@ router.post(
 );
 
 export { router as guildRoutes };
+

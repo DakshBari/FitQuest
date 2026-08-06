@@ -22,7 +22,7 @@ const MUSCLE_GROUPS = {
   chest: {
     name: "Chest",
     icon: "💪",
-    color: "bg-red-500",
+    color: "bg-violet-500",
     exercises: [
       { id: "push-ups", name: "Push-ups", difficulty: "Beginner", duration: "2-3 min" },
       { id: "bench-press", name: "Bench Press", difficulty: "Intermediate", duration: "3-4 min" },
@@ -33,7 +33,7 @@ const MUSCLE_GROUPS = {
   triceps: {
     name: "Triceps",
     icon: "🔥",
-    color: "bg-orange-500",
+    color: "bg-purple-500",
     exercises: [
       { id: "tricep-dips", name: "Tricep Dips", difficulty: "Beginner", duration: "2-3 min" },
       { id: "overhead-extension", name: "Overhead Extension", difficulty: "Intermediate", duration: "3-4 min" },
@@ -140,7 +140,7 @@ export function LearnGameMode({ onSwitchMode }: LearnGameModeProps) {
     switch (difficulty) {
       case 'Beginner': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
       case 'Intermediate': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-      case 'Advanced': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+      case 'Advanced': return 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300'
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
     }
   }

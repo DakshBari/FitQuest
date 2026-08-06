@@ -149,3 +149,5 @@ ActivitySchema.index({ 'worldMapData.sessionId': 1 });
 
 export default mongoose.model<IActivity>('Activity', ActivitySchema);
 
+
+

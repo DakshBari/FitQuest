@@ -9,7 +9,7 @@ const router = express.Router()
 // Get user's captured areas
 router.get('/captured-areas', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user?.id
+    const userId = req.user?._id
     if (!userId) {
       return res.status(401).json({ error: 'User not authenticated' })
     }
@@ -40,7 +40,7 @@ router.get('/captured-areas', authenticateToken, async (req, res) => {
 // Save captured area
 router.post('/captured-areas', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user?.id
+    const userId = req.user?._id
     if (!userId) {
       return res.status(401).json({ error: 'User not authenticated' })
     }
@@ -67,7 +67,7 @@ router.post('/captured-areas', authenticateToken, async (req, res) => {
 // Get user's session history
 router.get('/sessions', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user?.id
+    const userId = req.user?._id
     if (!userId) {
       return res.status(401).json({ error: 'User not authenticated' })
     }
@@ -100,10 +100,65 @@ router.get('/sessions', authenticateToken, async (req, res) => {
   }
 })
 
+// Get a friend's session history (read-only, friendship required)
+router.get('/friend/:friendId/sessions', authenticateToken, async (req, res) => {
+  try {
+    const userId   = req.user?._id
+    const { friendId } = req.params
+
+    if (!userId) return res.status(401).json({ error: 'User not authenticated' })
+
+    // Verify accepted friendship
+    const Friendship = (await import('../models/Friendship')).default
+    const friendship = await Friendship.findOne({
+      $or: [
+        { requester: userId, recipient: friendId, status: 'accepted' },
+        { requester: friendId, recipient: userId, status: 'accepted' }
+      ]
+    })
+    if (!friendship) return res.status(403).json({ error: 'Not friends with this user' })
+
+    // Today's date range
+    const today = new Date();
+    const start = new Date(today); start.setHours(0, 0, 0, 0);
+    const end   = new Date(today); end.setHours(23, 59, 59, 999);
+
+    const activities = await Activity.find({
+      userId: friendId,
+      type: { $in: ['run', 'cycle'] },
+      worldMapData: { $exists: true },
+      'worldMapData.isActive': { $ne: true },
+      createdAt: { $gte: start, $lte: end }
+    })
+      .sort({ createdAt: -1 })
+      .limit(10)
+
+    const sessions = activities.map(activity => ({
+      id: activity._id,
+      type: activity.type,
+      mode: activity.worldMapData?.mode || 'explorer',
+      startTime: activity.createdAt,
+      endTime: activity.worldMapData?.endTime,
+      path: activity.worldMapData?.path || [],
+      distance: activity.worldMapData?.distance || 0,
+      duration: activity.worldMapData?.duration || 0,
+      averageSpeed: activity.worldMapData?.averageSpeed || 0,
+      maxSpeed: activity.worldMapData?.maxSpeed || 0,
+      capturedAreas: activity.worldMapData?.capturedAreas || { type: 'FeatureCollection', features: [] },
+      isActive: false
+    }))
+
+    res.json({ status: 'success', sessions })
+  } catch (error) {
+    console.error('Error fetching friend sessions:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // Start new session
 router.post('/sessions', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user?.id
+    const userId = req.user?._id
     if (!userId) {
       return res.status(401).json({ error: 'User not authenticated' })
     }
@@ -148,7 +203,7 @@ router.post('/sessions', authenticateToken, async (req, res) => {
 // Update/complete session
 router.put('/sessions/:sessionId', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user?.id
+    const userId = req.user?._id
     const { sessionId } = req.params
     
     if (!userId) {
@@ -192,7 +247,7 @@ router.put('/sessions/:sessionId', authenticateToken, async (req, res) => {
 // Get session statistics
 router.get('/stats', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user?.id
+    const userId = req.user?._id
     if (!userId) {
       return res.status(401).json({ error: 'User not authenticated' })
     }

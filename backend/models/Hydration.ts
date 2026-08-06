@@ -39,3 +39,5 @@ HydrationSchema.index({ userId: 1, date: 1 }, { unique: true }); // One entry pe
 
 export default mongoose.model<IHydration>('Hydration', HydrationSchema);
 
+
+

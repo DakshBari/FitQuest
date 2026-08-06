@@ -51,10 +51,13 @@ router.put(
     body('profile.height').optional().isFloat({ min: 0 }),
     body('profile.bodyType').optional().isIn(['ectomorph', 'mesomorph', 'endomorph']),
     body('profile.goal').optional().isIn(['muscle-gain', 'weight-loss', 'maintenance', 'endurance']),
+    body('profile.workoutSplit').optional().isIn(['push-pull-legs', 'upper-lower', 'full-body', 'bro-split', 'custom']),
+    body('profile.foodPreference').optional().isIn(['non-veg', 'veg', 'vegan', 'jain']),
     body('goals.calories').optional().isInt({ min: 0 }),
     body('goals.protein').optional().isFloat({ min: 0 }),
     body('goals.carbs').optional().isFloat({ min: 0 }),
-    body('goals.fats').optional().isFloat({ min: 0 })
+    body('goals.fats').optional().isFloat({ min: 0 }),
+    body('goals.water').optional().isInt({ min: 0 })
   ],
   async (req: AuthRequest, res, next) => {
     try {
@@ -153,30 +156,74 @@ router.get(
 );
 
 // @route   PUT /api/users/status
-// @desc    Update online status (true/false)
+// @desc    Update online status — supports both JSON and sendBeacon (text/plain)
 // @access  Private
 router.put('/status', protect, async (req: AuthRequest, res, next) => {
   try {
-    const { isOnline } = req.body;
+    let isOnline = req.body?.isOnline;
+
+    // sendBeacon sends body as text/plain — parse it manually
+    if (isOnline === undefined && typeof req.body === 'string') {
+      try { isOnline = JSON.parse(req.body).isOnline; } catch {}
+    }
 
     const updateData: any = { isOnline };
     if (isOnline === false) {
       updateData.lastSeen = new Date();
+    } else {
+      // Always refresh lastSeen on heartbeat pings too
+      updateData.lastSeen = new Date();
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      updateData,
-      { new: true }
-    );
+    await User.findByIdAndUpdate(req.user._id, updateData);
 
-    res.json({
-      status: 'success',
-      user
-    });
+    res.json({ status: 'success' });
   } catch (error: any) {
     next(error);
   }
 });
 
+// @route   PUT /api/users/change-password
+// @desc    Change user password
+// @access  Private
+router.put(
+  '/change-password',
+  protect,
+  [
+    body('currentPassword').notEmpty().withMessage('Current password is required'),
+    body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters')
+  ],
+  async (req: AuthRequest, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { currentPassword, newPassword } = req.body;
+      const user = await User.findById(req.user._id).select('+password');
+
+      if (!user) {
+        return next(new AppError('User not found', 404));
+      }
+
+      const isMatch = await user.comparePassword(currentPassword);
+      if (!isMatch) {
+        return next(new AppError('Incorrect current password', 400));
+      }
+
+      user.password = newPassword;
+      await user.save();
+
+      res.json({
+        status: 'success',
+        message: 'Password changed successfully'
+      });
+    } catch (error: any) {
+      next(error);
+    }
+  }
+);
+
 export { router as userRoutes };
+

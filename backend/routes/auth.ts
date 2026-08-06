@@ -104,6 +104,12 @@ router.post(
         return next(new AppError('Invalid email or password', 401));
       }
 
+      // Mark user online
+      await User.findByIdAndUpdate(user._id, {
+        isOnline: true,
+        lastSeen: new Date()
+      });
+
       // Generate token
       const token = generateToken(user._id.toString());
 
@@ -125,12 +131,32 @@ router.post(
   }
 );
 
+// @route   POST /api/auth/logout
+// @desc    Logout user (mark offline)
+// @access  Private
+router.post('/logout', protect, async (req: AuthRequest, res, next) => {
+  try {
+    await User.findByIdAndUpdate(req.user._id, {
+      isOnline: false,
+      lastSeen: new Date()
+    });
+    res.json({ status: 'success', message: 'Logged out successfully' });
+  } catch (error: any) {
+    next(error);
+  }
+});
+
 // @route   GET /api/auth/me
-// @desc    Get current user
+// @desc    Get current user (also refreshes lastSeen / online status)
 // @access  Private
 router.get('/me', protect, async (req: AuthRequest, res, next) => {
   try {
-    const user = await User.findById(req.user._id);
+    // Refresh online status on each /me call (acts as heartbeat)
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { isOnline: true, lastSeen: new Date() },
+      { new: true }
+    );
 
     if (!user) {
       return next(new AppError('User not found', 404));
@@ -160,4 +186,6 @@ router.get('/me', protect, async (req: AuthRequest, res, next) => {
 });
 
 export { router as authRoutes };
+
+
 

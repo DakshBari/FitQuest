@@ -1,647 +1,662 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
-import { usePathname } from "next/navigation"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Send, Mic, MicOff, Volume2, VolumeX, MessageSquare, Clock, Trash2, Sparkles, Zap, Brain, Plus, Settings, User } from "lucide-react"
+import { useState, useRef, useEffect, useCallback } from "react"
+import { Send, Mic, MicOff, Volume2, VolumeX, MessageSquare, Clock, Trash2, Sparkles, Zap, Brain, Plus, User } from "lucide-react"
 import { aiCoachService, type Message, type ChatSession } from "@/services/aiCoachService"
 import { useToast } from "@/hooks/use-toast"
-import { getThemeClasses } from "@/lib/pageThemes"
 import { cn } from "@/lib/utils"
-import { PageHeader } from "@/components/page-header"
 
+// ─── Brand accent ──────────────────────────────────────────
+const PURPLE = "#8b5cf6"
+
+// ─── Ripple rings — follow mouse cursor ─────────────────
+function SonarRings() {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const raf = useRef<number>(0)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    type Ring = { r: number; maxR: number; life: number; maxLife: number; cx: number; cy: number }
+    const rings: Ring[] = []
+    let W = 0, H = 0, lastSpawn = 0
+
+    const resize = () => {
+      W = canvas.width  = canvas.offsetWidth
+      H = canvas.height = canvas.offsetHeight
+    }
+    resize()
+    const ro = new ResizeObserver(resize)
+    ro.observe(canvas)
+
+    const spawnAt = (x: number, y: number) => {
+      rings.push({ r: 0, maxR: 55 + Math.random() * 70, life: 0, maxLife: 80 + Math.random() * 40, cx: x, cy: y })
+    }
+
+    // Mouse on the PARENT (canvas is pointer-events-none)
+    const onMove = (e: MouseEvent) => {
+      const now = Date.now()
+      if (now - lastSpawn < 120) return
+      lastSpawn = now
+      const rect = canvas.getBoundingClientRect()
+      spawnAt(e.clientX - rect.left, e.clientY - rect.top)
+    }
+
+    // fallback auto-spawn when no mouse
+    const auto = setInterval(() => {
+      if (Date.now() - lastSpawn > 1500) spawnAt(W * 0.25 + Math.random() * W * 0.5, H * 0.5 + (Math.random() - 0.5) * H * 0.4)
+    }, 1800)
+
+    const parent = canvas.parentElement
+    parent?.addEventListener("mousemove", onMove)
+
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H)
+      for (let i = rings.length - 1; i >= 0; i--) {
+        const ring = rings[i]
+        ring.life++
+        ring.r = (ring.life / ring.maxLife) * ring.maxR
+        const alpha = Math.pow(1 - ring.life / ring.maxLife, 1.5) * 0.4
+        ctx.beginPath()
+        ctx.arc(ring.cx, ring.cy, ring.r, 0, Math.PI * 2)
+        ctx.strokeStyle = `rgba(139,92,246,${alpha.toFixed(3)})`
+        ctx.lineWidth = 1.5
+        ctx.stroke()
+        if (ring.life >= ring.maxLife) rings.splice(i, 1)
+      }
+      raf.current = requestAnimationFrame(draw)
+    }
+    draw()
+
+    return () => {
+      clearInterval(auto)
+      cancelAnimationFrame(raf.current)
+      parent?.removeEventListener("mousemove", onMove)
+      ro.disconnect()
+    }
+  }, [])
+
+  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-[1]" />
+}
+
+// ─── Bright floating particles ────────────────────────────
+function ParticleField() {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const raf = useRef<number>(0)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    let W = 0, H = 0
+    const resize = () => { W = canvas.width = canvas.offsetWidth; H = canvas.height = canvas.offsetHeight }
+    resize()
+    const ro = new ResizeObserver(resize)
+    ro.observe(canvas)
+
+    type Dot = { x: number; y: number; vx: number; vy: number; r: number }
+    const dots: Dot[] = Array.from({ length: 22 }, () => ({
+      x: Math.random() * 800,
+      y: Math.random() * 600,
+      vx: (Math.random() - 0.5) * 0.35,
+      vy: (Math.random() - 0.5) * 0.35,
+      r: 1 + Math.random() * 2,
+    }))
+
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H)
+      dots.forEach(d => {
+        d.x += d.vx; d.y += d.vy
+        if (d.x < 0) d.x = W; if (d.x > W) d.x = 0
+        if (d.y < 0) d.y = H; if (d.y > H) d.y = 0
+
+        // Soft glow halo
+        const grd = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, d.r * 3)
+        grd.addColorStop(0, "rgba(167,139,250,0.18)")
+        grd.addColorStop(1, "rgba(167,139,250,0)")
+        ctx.beginPath()
+        ctx.arc(d.x, d.y, d.r * 3, 0, Math.PI * 2)
+        ctx.fillStyle = grd
+        ctx.fill()
+
+        // Core dot
+        ctx.beginPath()
+        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2)
+        ctx.fillStyle = "rgba(196,181,253,0.55)"
+        ctx.fill()
+      })
+      raf.current = requestAnimationFrame(draw)
+    }
+    draw()
+    return () => { cancelAnimationFrame(raf.current); ro.disconnect() }
+  }, [])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 w-full h-full pointer-events-none z-[1]"
+    />
+  )
+}
+
+// ─── Thinking dots ────────────────────────────────────────
+function ThinkingDots() {
+  return (
+    <div className="flex items-center gap-1 py-1">
+      {[0, 1, 2].map(i => (
+        <div
+          key={i}
+          className="w-1.5 h-1.5 rounded-full bg-violet-400"
+          style={{ animation: `bounce 1s ease-in-out ${i * 0.15}s infinite` }}
+        />
+      ))}
+    </div>
+  )
+}
+
+// ─── Formatted Message with Bullets & Bold ───────────────
+function FormattedMessage({ text, isAI }: { text: string; isAI: boolean }) {
+  const lines = text.split("\n")
+  const elements: React.ReactNode[] = []
+  let currentList: React.ReactNode[] = []
+
+  const renderBold = (str: string) => {
+    const regex = /\*\*(.*?)\*\*/g
+    const segments = []
+    let lastIdx = 0
+    let match
+    while ((match = regex.exec(str)) !== null) {
+      if (match.index > lastIdx) {
+        segments.push(str.substring(lastIdx, match.index))
+      }
+      segments.push(
+        <strong key={match.index} className={cn("font-semibold", isAI ? "text-violet-400" : "text-white")}>
+          {match[1]}
+        </strong>
+      )
+      lastIdx = regex.lastIndex
+    }
+    if (lastIdx < str.length) {
+      segments.push(str.substring(lastIdx))
+    }
+    return segments.length > 0 ? segments : str
+  }
+
+  lines.forEach((line, index) => {
+    const trimmed = line.trim()
+    
+    // Check for bullet points starting with * or -
+    if (trimmed.startsWith("* ") || trimmed.startsWith("- ")) {
+      const content = trimmed.substring(2)
+      currentList.push(
+        <li key={index} className={cn("mb-1.5 text-sm leading-relaxed", isAI ? "text-foreground/90" : "text-white/90")}>
+          {renderBold(content)}
+        </li>
+      )
+    } else {
+      if (currentList.length > 0) {
+        elements.push(
+          <ul key={`list-${index}`} className="list-disc list-outside pl-6 my-2 space-y-0.5">
+            {currentList}
+          </ul>
+        )
+        currentList = []
+      }
+      
+      if (trimmed === "") {
+        elements.push(<div key={index} className="h-2" />)
+      } else {
+        elements.push(
+          <p key={index} className={cn("mb-1 text-sm leading-relaxed", isAI ? "text-foreground/95" : "text-white")}>
+            {renderBold(line)}
+          </p>
+        )
+      }
+    }
+  })
+
+  if (currentList.length > 0) {
+    elements.push(
+      <ul key="list-final" className="list-disc list-outside pl-6 my-2 space-y-0.5">
+        {currentList}
+      </ul>
+    )
+  }
+
+  return <div className="space-y-0.5">{elements}</div>
+}
+
+// ─── Message bubble ───────────────────────────────────────
+function Bubble({ msg, isTyping, displayedContent }: {
+  msg: Message; isTyping: boolean; displayedContent: string
+}) {
+  const isAI = msg.role === "ai"
+  const text = isTyping ? displayedContent : msg.content
+  const time = (() => {
+    const d = typeof msg.timestamp === "string" ? new Date(msg.timestamp) : msg.timestamp
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  })()
+
+  return (
+    <div className={cn("flex gap-2.5 max-w-[85%]", isAI ? "self-start" : "self-end flex-row-reverse")}>
+      {isAI && (
+        <div className="w-7 h-7 rounded-full bg-violet-500/15 border border-violet-500/25 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+        </div>
+      )}
+      <div>
+        <div
+          className={cn(
+            "px-4 py-3 rounded-2xl text-sm leading-relaxed",
+            isAI
+              ? "bg-card border border-border/50 text-foreground rounded-tl-sm"
+              : "text-white rounded-tr-sm"
+          )}
+          style={!isAI ? { background: PURPLE } : {}}
+        >
+          <FormattedMessage text={text} isAI={isAI} />
+          {isTyping && (
+            <span className="inline-block w-0.5 h-3.5 bg-violet-400 ml-0.5 animate-pulse" />
+          )}
+        </div>
+        <p suppressHydrationWarning className={cn("text-[10px] text-muted-foreground/50 mt-1", isAI ? "text-left pl-1" : "text-right pr-1")}>
+          {time}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main ─────────────────────────────────────────────────
 export default function AICoachPage() {
-  const pathname = usePathname()
-  const themeClasses = getThemeClasses(pathname)
-  const [message, setMessage] = useState("")
-  const [currentMessages, setCurrentMessages] = useState<Message[]>([
-    {
-      role: "ai",
-      content: "Hello, Warrior! I'm your AI Coach. How can I help optimize your training today?",
-      timestamp: new Date(),
-    },
-  ])
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
+  const [message,          setMessage]          = useState("")
+  const [currentMessages,  setCurrentMessages]  = useState<Message[]>([{
+    role: "ai",
+    content: "Hello! I'm your AI Coach. Ask me anything about training, nutrition, recovery, or form — I'm here to help you perform at your best.",
+    timestamp: new Date(),
+  }])
+  const [chatSessions,     setChatSessions]     = useState<ChatSession[]>([])
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
-  const [isListening, setIsListening] = useState(false)
-  const [isVoiceOutputEnabled, setIsVoiceOutputEnabled] = useState(false)
-  const [isTextOutputEnabled, setIsTextOutputEnabled] = useState(true)
-  const [isLoading, setIsLoading] = useState(false)
-  const [aiStatus, setAiStatus] = useState<'online' | 'fallback' | 'offline'>('online')
-  const [authError, setAuthError] = useState<string | null>(null)
-  const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null)
-  const [displayedContent, setDisplayedContent] = useState<string>("")
-  
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
-  const synthRef = useRef<SpeechSynthesis | null>(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const { toast } = useToast()
+  const [isListening,      setIsListening]      = useState(false)
+  const [isVoiceEnabled,   setIsVoiceEnabled]   = useState(false)
+  const [isLoading,        setIsLoading]        = useState(false)
+  const [aiStatus,         setAiStatus]         = useState<"online" | "offline">("online")
+  const [authError,        setAuthError]        = useState<string | null>(null)
+  const [typingIdx,        setTypingIdx]        = useState<number | null>(null)
+  const [displayedContent, setDisplayedContent] = useState("")
+
+  const recognitionRef  = useRef<SpeechRecognition | null>(null)
+  const synthRef        = useRef<SpeechSynthesis | null>(null)
+  const messagesEndRef  = useRef<HTMLDivElement>(null)
+  const inputRef        = useRef<HTMLInputElement>(null)
+  const { toast }       = useToast()
 
   const quickPrompts = [
-    "Analyze my squat form",
-    "Suggest a post-workout meal", 
-    "Why does my knee hurt?",
+    "Suggest a workout for today",
+    "Best post-workout meal?",
+    "How do I improve my squat?",
     "Create a recovery plan",
   ]
 
-  // Initialize speech recognition and synthesis
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // Speech Recognition
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-      if (SpeechRecognition) {
-        recognitionRef.current = new SpeechRecognition()
-        recognitionRef.current.continuous = false
-        recognitionRef.current.interimResults = false
-        recognitionRef.current.lang = 'en-US'
-        
-        recognitionRef.current.onresult = (event) => {
-          const transcript = event.results[0][0].transcript
-          setMessage(transcript)
-          setIsListening(false)
-        }
-        
-        recognitionRef.current.onerror = () => {
-          setIsListening(false)
-          toast({
-            title: "Voice Recognition Error",
-            description: "Could not recognize speech. Please try again.",
-            variant: "destructive"
-          })
-        }
-        
-        recognitionRef.current.onend = () => {
-          setIsListening(false)
-        }
-      }
-      
-      // Speech Synthesis
-      synthRef.current = window.speechSynthesis
+    if (typeof window === "undefined") return
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (SR) {
+      const r = new SR()
+      r.continuous = false; r.interimResults = false; r.lang = "en-US"
+      r.onresult = (e: any) => { setMessage(e.results[0][0].transcript); setIsListening(false) }
+      r.onerror = () => setIsListening(false)
+      r.onend = () => setIsListening(false)
+      recognitionRef.current = r
     }
-
-    // Load chat sessions on component mount
-    loadChatSessions()
-    checkAiStatus()
+    synthRef.current = window.speechSynthesis
+    loadSessions()
+    checkStatus()
   }, [])
 
-  // Auto-scroll to bottom when messages change
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }) }, [currentMessages, isLoading])
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [currentMessages, isLoading])
+    if (typingIdx === null || !currentMessages[typingIdx]) return
+    const full = currentMessages[typingIdx].content
+    let i = 0
+    setDisplayedContent("")
+    const id = setInterval(() => {
+      if (i < full.length) { setDisplayedContent(full.slice(0, ++i)) }
+      else { clearInterval(id); setTypingIdx(null); setDisplayedContent("") }
+    }, 5)
+    return () => clearInterval(id)
+  }, [typingIdx])
 
-  // Typewriter effect for AI messages
-  useEffect(() => {
-    if (typingMessageIndex !== null && currentMessages[typingMessageIndex]) {
-      const fullContent = currentMessages[typingMessageIndex].content
-      let currentIndex = 0
-      setDisplayedContent("")
-      
-      const typeInterval = setInterval(() => {
-        if (currentIndex < fullContent.length) {
-          setDisplayedContent(fullContent.slice(0, currentIndex + 1))
-          currentIndex++
-          
-          // Auto-scroll every 20 characters or at the end
-          if (currentIndex % 20 === 0 || currentIndex === fullContent.length) {
-            setTimeout(() => {
-              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-            }, 10)
-          }
-        } else {
-          clearInterval(typeInterval)
-          setTypingMessageIndex(null)
-          setDisplayedContent("")
-        }
-      }, 20) // Adjust speed here (lower = faster)
-      
-      return () => clearInterval(typeInterval)
-    }
-  }, [typingMessageIndex, currentMessages])
-
-  const checkAiStatus = async () => {
+  const checkStatus = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/health`)
-      if (response.ok) {
-        setAiStatus('online')
-      } else {
-        setAiStatus('fallback')
-      }
-    } catch (error) {
-      setAiStatus('offline')
-    }
+      const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/health`)
+      setAiStatus(r.ok ? "online" : "offline")
+    } catch { setAiStatus("offline") }
   }
 
-  const loadChatSessions = async () => {
+  const loadSessions = async () => {
     try {
-      const sessions = await aiCoachService.getChatSessions()
-      setChatSessions(sessions)
-      setAuthError(null)
-    } catch (error: any) {
-      console.error('Error loading chat sessions:', error)
-      if (error.message.includes('Authentication required')) {
-        setAuthError(error.message)
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to load chat history",
-          variant: "destructive"
-        })
-      }
-    }
-  }
-
-  const startListening = () => {
-    if (recognitionRef.current && !isListening) {
-      setIsListening(true)
-      recognitionRef.current.start()
-    }
-  }
-
-  const stopListening = () => {
-    if (recognitionRef.current && isListening) {
-      recognitionRef.current.stop()
-      setIsListening(false)
-    }
-  }
-
-  const speakText = (text: string) => {
-    if (synthRef.current && isVoiceOutputEnabled) {
-      const utterance = new SpeechSynthesisUtterance(text)
-      utterance.rate = 0.9
-      utterance.pitch = 1
-      utterance.volume = 0.8
-      synthRef.current.speak(utterance)
+      const s = await aiCoachService.getChatSessions()
+      setChatSessions(s); setAuthError(null)
+    } catch (e: any) {
+      if (e.message?.includes("Authentication")) setAuthError(e.message)
     }
   }
 
   const createNewSession = () => {
-    setCurrentSessionId(null)
-    setTypingMessageIndex(null)
-    setDisplayedContent("")
-    setCurrentMessages([
-      {
-        role: "ai",
-        content: "Hello, Warrior! I'm your AI Coach. How can I help optimize your training today?",
-        timestamp: new Date(),
-      },
-    ])
+    setCurrentSessionId(null); setTypingIdx(null); setDisplayedContent("")
+    setCurrentMessages([{
+      role: "ai",
+      content: "Hello! I'm your AI Coach. Ask me anything about training, nutrition, recovery, or form — I'm here to help you perform at your best.",
+      timestamp: new Date(),
+    }])
   }
 
-  const loadChatSession = (session: ChatSession) => {
-    setTypingMessageIndex(null)
-    setDisplayedContent("")
-    setCurrentMessages(session.messages.map(msg => ({
-      ...msg,
-      timestamp: new Date(msg.timestamp)
-    })))
-    setCurrentSessionId(session._id)
+  const loadSession = (s: ChatSession) => {
+    setTypingIdx(null); setDisplayedContent("")
+    setCurrentMessages(s.messages.map(m => ({ ...m, timestamp: new Date(m.timestamp) })))
+    setCurrentSessionId(s._id)
   }
 
-  const deleteChatSession = async (sessionId: string) => {
+  const deleteSession = async (id: string) => {
     try {
-      await aiCoachService.deleteChatSession(sessionId)
-      setChatSessions(prev => prev.filter(s => s._id !== sessionId))
-      
-      if (currentSessionId === sessionId) {
-        createNewSession()
-      }
-      
-      toast({
-        title: "Success",
-        description: "Chat session deleted successfully"
-      })
-    } catch (error) {
-      console.error('Error deleting chat session:', error)
-      toast({
-        title: "Error",
-        description: "Failed to delete chat session",
-        variant: "destructive"
-      })
-    }
+      await aiCoachService.deleteChatSession(id)
+      setChatSessions(p => p.filter(s => s._id !== id))
+      if (currentSessionId === id) createNewSession()
+    } catch { toast({ title: "Error", description: "Failed to delete session", variant: "destructive" }) }
   }
 
   const handleSend = async () => {
-    if (!message.trim() || isLoading) return
-    
-    // Check message limit (10 messages = 20 total including AI responses)
-    if (currentMessages.length >= 20) {
-      toast({
-        title: "Message Limit Reached",
-        description: "Please start a new chat to continue the conversation.",
-        variant: "destructive"
-      })
-      return
-    }
-    
-    const userMessage: Message = {
-      role: "user",
-      content: message,
-      timestamp: new Date(),
-    }
-    
-    const updatedMessages = [...currentMessages, userMessage]
-    setCurrentMessages(updatedMessages)
-    setMessage("")
-    setIsLoading(true)
-    
+    if (!message.trim() || isLoading || currentMessages.length >= 20) return
+    const userMsg: Message = { role: "user", content: message, timestamp: new Date() }
+    const updated = [...currentMessages, userMsg]
+    setCurrentMessages(updated); setMessage(""); setIsLoading(true)
     try {
-      const response = await aiCoachService.sendMessage(message, currentSessionId || undefined)
-      
-      const aiResponse: Message = {
-        role: "ai",
-        content: response.message,
-        timestamp: new Date(),
-      }
-      
-      const finalMessages = [...updatedMessages, aiResponse]
-      setCurrentMessages(finalMessages)
-      setCurrentSessionId(response.sessionId)
-      setAuthError(null) // Clear any previous auth errors
-      
-      // Start typewriter effect for the AI response
-      setTypingMessageIndex(finalMessages.length - 1)
-      
-      // Speak AI response if voice output is enabled (after typing is complete)
-      if (isVoiceOutputEnabled) {
+      const res = await aiCoachService.sendMessage(message, currentSessionId || undefined)
+      const aiMsg: Message = { role: "ai", content: res.message, timestamp: new Date() }
+      const final = [...updated, aiMsg]
+      setCurrentMessages(final); setCurrentSessionId(res.sessionId); setAuthError(null)
+      setTypingIdx(final.length - 1)
+      if (isVoiceEnabled && synthRef.current) {
         setTimeout(() => {
-          speakText(aiResponse.content)
-        }, aiResponse.content.length * 20 + 500) // Wait for typing to complete
+          const u = new SpeechSynthesisUtterance(aiMsg.content)
+          u.rate = 0.9; synthRef.current!.speak(u)
+        }, aiMsg.content.length * 5 + 300)
       }
-      
-      // Reload chat sessions to update the list
-      await loadChatSessions()
-      
-      // Show warning when approaching limit
-      if (finalMessages.length >= 18) {
-        toast({
-          title: "Approaching Message Limit",
-          description: "You have 1 message left. Consider starting a new chat soon.",
-          variant: "default"
-        })
-      }
-      
-    } catch (error: any) {
-      console.error('Error sending message:', error)
-      
-      if (error.message.includes('Authentication required')) {
-        setAuthError(error.message)
-        toast({
-          title: "Authentication Required",
-          description: "Please log in to use the AI coach",
-          variant: "destructive"
-        })
+      await loadSessions()
+    } catch (e: any) {
+      if (e.message?.includes("Authentication")) {
+        setAuthError(e.message)
       } else {
-        toast({
-          title: "Error",
-          description: "Failed to send message. Please try again.",
-          variant: "destructive"
-        })
-        
-        // Add fallback AI response
-        const fallbackResponse: Message = {
-          role: "ai",
-          content: "I'm experiencing some technical difficulties right now. Please try again in a moment. In the meantime, remember to stay consistent with your workouts and listen to your body!",
-          timestamp: new Date(),
-        }
-        setCurrentMessages([...updatedMessages, fallbackResponse])
-        // Start typewriter effect for fallback response too
-        setTimeout(() => {
-          setTypingMessageIndex(updatedMessages.length)
-        }, 100)
+        const errMsg: Message = { role: "ai", content: e.message || "Something went wrong. Please try again.", timestamp: new Date() }
+        setCurrentMessages([...updated, errMsg])
       }
-    } finally {
-      setIsLoading(false)
-    }
+    } finally { setIsLoading(false) }
   }
 
-  const formatTime = (date: Date | string) => {
-    const dateObj = typeof date === 'string' ? new Date(date) : date
-    const now = new Date()
-    const diff = now.getTime() - dateObj.getTime()
-    const minutes = Math.floor(diff / 60000)
-    const hours = Math.floor(diff / 3600000)
-    const days = Math.floor(diff / 86400000)
-    
-    if (minutes < 1) return "Just now"
-    if (minutes < 60) return `${minutes}m ago`
-    if (hours < 24) return `${hours}h ago`
-    return `${days}d ago`
+  const fmtRelative = (d: Date | string) => {
+    const ms = Date.now() - new Date(d).getTime()
+    const m = Math.floor(ms / 60000)
+    if (m < 1) return "Just now"
+    if (m < 60) return `${m}m ago`
+    if (m < 1440) return `${Math.floor(m / 60)}h ago`
+    return `${Math.floor(m / 1440)}d ago`
   }
 
-  const formatMessageTime = (date: Date | string) => {
-    const dateObj = typeof date === 'string' ? new Date(date) : date
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000)
-    const messageDate = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate())
-    
-    const timeString = dateObj.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit',
-      hour12: true 
-    })
-    
-    if (messageDate.getTime() === today.getTime()) {
-      return timeString // Just time for today
-    } else if (messageDate.getTime() === yesterday.getTime()) {
-      return `Yesterday ${timeString}`
-    } else if (now.getTime() - dateObj.getTime() < 7 * 24 * 60 * 60 * 1000) {
-      // Within a week - show day name
-      return `${dateObj.toLocaleDateString('en-US', { weekday: 'short' })} ${timeString}`
-    } else {
-      // Older than a week - show date
-      return `${dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} ${timeString}`
-    }
-  }
+  const atLimit = currentMessages.length >= 20
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
-      {/* Modern Header */}
-      <PageHeader 
-        icon={Brain}
-        title="The Oracle"
-        subtitle="AI-Powered Fitness Intelligence"
-        className="mb-4 pt-6 pb-0"
-      />
-      
-      <div className="px-6">
-        {aiStatus === 'offline' && (
-          <div className="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-2xl backdrop-blur-sm">
-            <p className="text-sm text-destructive flex items-center gap-2">
-              <Zap className="w-4 h-4" />
-              AI services are currently unavailable. Please try again later.
-            </p>
-          </div>
-        )}
-        
-        {authError && (
-          <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl backdrop-blur-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <User className="w-5 h-5 text-blue-500" />
-                <div>
-                  <p className="text-sm text-blue-600 dark:text-blue-400 font-semibold">Authentication Required</p>
-                  <p className="text-xs text-blue-500 dark:text-blue-400/80 mt-1">Please log in to access AI coach features</p>
-                </div>
-              </div>
-              <Button
-                size="sm"
-                onClick={() => window.location.href = '/login'}
-                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 shadow-lg shadow-blue-500/25 rounded-xl font-medium"
-              >
-                Log In
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
+    <div className="h-[calc(100vh-4rem)] flex flex-col overflow-hidden bg-background">
+      <div className="w-full max-w-7xl mx-auto px-6 sm:px-12 lg:px-20 flex-1 flex flex-col pt-8 pb-8 min-h-0">
 
-      {/* Main Content */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-10 gap-6 px-6 pb-6 min-h-0 overflow-hidden">
-        {/* Chat Interface */}
-        <div className="lg:col-span-7 flex flex-col h-full min-h-0">
-          <div className="flex-1 bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5 flex flex-col overflow-hidden" style={{ minHeight: '600px' }}>
-            {/* AI Header */}
-            <div className="flex-shrink-0 p-6 border-b border-border bg-gradient-to-r from-purple-500/10 via-transparent to-cyan-500/10">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-purple-500/30 animate-pulse">
-                      <Sparkles className="w-7 h-7 text-white" />
-                    </div>
-                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-background animate-pulse"></div>
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-foreground font-inter">The Oracle</h3>
-                    <div className="text-sm text-muted-foreground flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                      <span>AI Fitness Coach - Online</span>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Output Controls */}
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-muted-foreground font-medium">Output:</span>
-                  <div className="flex items-center gap-2 p-1 bg-muted/50 rounded-xl">
-                    <Button
-                      variant={isTextOutputEnabled ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setIsTextOutputEnabled(!isTextOutputEnabled)}
-                      className={`text-xs font-medium rounded-lg transition-all ${
-                        isTextOutputEnabled 
-                          ? "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg shadow-purple-500/25" 
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      }`}
-                    >
-                      Text
-                    </Button>
-                    <Button
-                      variant={isVoiceOutputEnabled ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setIsVoiceOutputEnabled(!isVoiceOutputEnabled)}
-                      className={`text-xs font-medium rounded-lg transition-all flex items-center gap-1 ${
-                        isVoiceOutputEnabled 
-                          ? "bg-gradient-to-r from-cyan-500 to-cyan-600 text-white shadow-lg shadow-cyan-500/25" 
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {isVoiceOutputEnabled ? <Volume2 className="h-3 w-3" /> : <VolumeX className="h-3 w-3" />}
-                      Voice
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
+      {/* ── Alerts ─────────────────────────────────────── */}
+      {aiStatus === "offline" && (
+        <div className="mx-0 mb-3 px-4 py-2.5 rounded-xl border border-red-500/25 bg-red-500/8 flex items-center gap-2">
+          <Zap className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+          <p className="text-xs text-red-500">AI services unavailable. Please try again later.</p>
+        </div>
+      )}
+      {authError && (
+        <div className="mb-3 px-4 py-2.5 rounded-xl border border-border/50 bg-card/70 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <User className="w-3.5 h-3.5 text-muted-foreground/60" />
+            <p className="text-xs text-muted-foreground">Please log in to access AI Coach features</p>
+          </div>
+          <button
+            onClick={() => window.location.href = "/login"}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors text-foreground"
+          >
+            Log In
+          </button>
+        </div>
+      )}
 
-            {/* Message Limit Warning */}
-            {currentMessages.length >= 19 && (
-              <div className="flex-shrink-0 px-6 py-3 bg-gradient-to-r from-orange-500/10 to-red-500/10 border-b border-orange-500/20">
-                <p className="text-sm text-orange-600 dark:text-orange-400 flex items-center gap-2 font-medium">
-                  <Zap className="w-4 h-4" />
-                  Chat limit reached (10 messages). Start a new chat to continue.
+      {/* ── Main grid ──────────────────────────────────── */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 min-h-0" style={{ minHeight: 560 }}>
+
+        {/* ── Chat panel ─────────────────────────────── */}
+        <div className="flex flex-col min-h-0 rounded-3xl border border-border/50 bg-card overflow-hidden relative">
+
+          {/* Sonar rings — live ambient element */}
+          <SonarRings />
+
+          {/* Chat header */}
+          <div className="flex-shrink-0 px-5 py-4 border-b border-border/50 flex items-center justify-between relative z-10">
+            <div className="flex items-center gap-3">
+              {/* Avatar with status */}
+              <div className="relative">
+                <div className="w-10 h-10 rounded-2xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-violet-400" />
+                </div>
+                <div className={cn(
+                  "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-card",
+                  aiStatus === "online" ? "bg-emerald-400" : "bg-red-400"
+                )} />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-foreground">The Oracle</h2>
+                <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
+                  <span className={cn("w-1.5 h-1.5 rounded-full", aiStatus === "online" ? "bg-emerald-400" : "bg-red-400")} />
+                  {aiStatus === "online" ? "Online · AI Fitness Coach" : "Offline"}
                 </p>
               </div>
-            )}
-
-            {/* Chat Messages */}
-            <div className="flex-1 min-h-0 relative">
-              <div className="absolute inset-0 overflow-y-auto p-6 space-y-6">
-                {currentMessages.map((msg, index) => (
-                  <div key={index} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} animate-in slide-in-from-bottom-2 duration-300`}>
-                    <div
-                      className={`max-w-[85%] p-5 rounded-3xl shadow-lg transition-all hover:shadow-xl ${
-                        msg.role === "user"
-                          ? "bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 text-foreground backdrop-blur-sm"
-                          : "bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-foreground backdrop-blur-sm"
-                      }`}
-                    >
-                      {isTextOutputEnabled && (
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap font-inter">
-                          {msg.role === "ai" && typingMessageIndex === index 
-                            ? (
-                              <>
-                                {displayedContent}
-                                <span className="inline-block w-2 h-5 bg-purple-400 ml-1 animate-pulse rounded-sm"></span>
-                              </>
-                            )
-                            : msg.content}
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground mt-3 font-medium">{formatMessageTime(msg.timestamp)}</p>
-                    </div>
-                  </div>
-                ))}
-                {isLoading && (
-                  <div className="flex justify-start animate-in slide-in-from-bottom-2 duration-300">
-                    <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-foreground backdrop-blur-sm p-5 rounded-3xl shadow-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="flex space-x-1">
-                          <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                          <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                        </div>
-                        <span className="text-sm font-medium">The Oracle is thinking...</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
             </div>
 
-            {/* Quick Prompts */}
-            {currentMessages.length === 1 && (
-              <div className="flex-shrink-0 px-6 py-4 border-t border-border bg-background/30">
-                <div className="flex flex-wrap gap-3">
-                  {quickPrompts.map((prompt, index) => (
-                    <Button
-                      key={index}
-                      size="sm"
-                      variant="outline"
-                      className="border-border/50 text-muted-foreground hover:text-foreground hover:bg-gradient-to-r hover:from-purple-500/20 hover:to-cyan-500/20 hover:border-purple-500/30 bg-background/30 backdrop-blur-sm text-xs font-medium rounded-xl transition-all duration-200"
-                      onClick={() => setMessage(prompt)}
-                      disabled={isLoading || currentMessages.length >= 20}
-                    >
-                      {prompt}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Output controls */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsVoiceEnabled(v => !v)}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[11px] font-medium transition-all",
+                  isVoiceEnabled
+                    ? "bg-violet-500/10 border-violet-500/30 text-violet-500"
+                    : "border-border/50 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {isVoiceEnabled ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
+                Voice
+              </button>
+            </div>
+          </div>
 
-            {/* Input Field */}
-            <div className="flex-shrink-0 p-6 border-t border-border bg-background/30">
-              <div className="flex gap-4">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className={`border-border/50 hover:bg-background/50 backdrop-blur-sm rounded-xl transition-all duration-200 ${
-                    isListening ? "text-red-400 border-red-400/50 bg-red-500/10" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  onClick={isListening ? stopListening : startListening}
-                  disabled={isLoading || currentMessages.length >= 20}
-                >
-                  {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-                </Button>
-                <Input
-                  type="text"
-                  placeholder={currentMessages.length >= 20 ? "Start a new chat to continue..." : "Ask me anything about your fitness..."}
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  className="flex-1 bg-background/50 border-border/50 focus:border-purple-500/50 text-foreground placeholder:text-muted-foreground rounded-xl backdrop-blur-sm font-inter transition-all duration-200"
-                  disabled={isLoading || currentMessages.length >= 20}
+          {/* Limit warning */}
+          {currentMessages.length >= 19 && (
+            <div className="flex-shrink-0 px-5 py-2 bg-amber-500/8 border-b border-amber-500/20 flex items-center gap-2">
+              <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+              <p className="text-xs text-amber-600 dark:text-amber-400">Chat limit reached. Start a new conversation to continue.</p>
+            </div>
+          )}
+
+          {/* Messages */}
+          <div className="flex-1 min-h-0 relative z-10">
+            <div className="absolute inset-0 overflow-y-auto px-6 py-6 flex flex-col gap-5">
+              {currentMessages.map((msg, i) => (
+                <Bubble
+                  key={i}
+                  msg={msg}
+                  isTyping={typingIdx === i}
+                  displayedContent={displayedContent}
                 />
-                <Button
-                  onClick={handleSend}
-                  className="bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 text-white border-0 shadow-lg shadow-purple-500/25 rounded-xl font-medium transition-all duration-200 hover:shadow-xl hover:shadow-purple-500/30"
-                  disabled={isLoading || !message.trim() || currentMessages.length >= 20}
-                >
-                  <Send className="h-5 w-5" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Chat History */}
-        <div className="lg:col-span-3 flex flex-col h-full min-h-0">
-          <div className="flex-1 bg-card/40 backdrop-blur-xl border border-border/50 rounded-3xl shadow-2xl shadow-cyan-500/10 flex flex-col overflow-hidden" style={{ minHeight: '600px' }}>
-            {/* History Header */}
-            <div className="flex-shrink-0 p-6 border-b border-border/50 bg-gradient-to-r from-cyan-500/10 via-transparent to-purple-500/10">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <MessageSquare className="h-5 w-5 text-cyan-400" />
-                  <h3 className="text-lg font-bold text-foreground font-inter">Chat History</h3>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={createNewSession}
-                  className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white border-0 shadow-lg shadow-cyan-500/25 rounded-xl font-medium text-xs transition-all duration-200 hover:shadow-xl"
-                >
-                  <Plus className="h-3 w-3 mr-1" />
-                  New Chat
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2 font-medium">Recent 5 conversations</p>
-            </div>
-
-            {/* Chat Sessions */}
-            <div className="flex-1 min-h-0 relative">
-              <div className="absolute inset-0 overflow-y-auto p-4 space-y-3">
-                {chatSessions.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-12">
-                    <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-30" />
-                    <p className="text-sm font-medium">No chat history yet</p>
-                    <p className="text-xs opacity-70 mt-1">Start a conversation to see it here</p>
+              ))}
+              {isLoading && (
+                <div className="flex gap-2.5 self-start">
+                  <div className="w-7 h-7 rounded-full bg-violet-500/15 border border-violet-500/25 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Sparkles className="w-3.5 h-3.5 text-violet-400" />
                   </div>
-                ) : (
-                  chatSessions.map((session) => (
-                    <div
-                      key={session._id}
-                      className={`p-4 rounded-2xl border cursor-pointer transition-all duration-200 hover:shadow-lg group ${
-                        currentSessionId === session._id
-                          ? "bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border-purple-500/30 shadow-lg shadow-purple-500/10"
-                          : "bg-background/30 border-border/30 hover:bg-background/50 hover:border-border/50"
-                      }`}
-                      onClick={() => loadChatSession(session)}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-sm font-semibold text-foreground truncate font-inter">{session.title}</h4>
-                          <p className="text-xs text-muted-foreground/80 mt-2 line-clamp-2 leading-relaxed">
-                            {session.messages[session.messages.length - 1]?.content || "No messages"}
-                          </p>
-                          <div className="flex items-center gap-2 mt-3">
-                            <Clock className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground font-medium">{formatTime(session.lastActivity)}</span>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            deleteChatSession(session._id)
-                          }}
-                          className="text-muted-foreground hover:text-destructive p-2 h-auto opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-destructive/10 rounded-lg"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <div className="mt-3 text-xs text-muted-foreground font-medium">
-                        {session.messages.length} messages
-                      </div>
-                    </div>
-                  ))
-                )}
+                  <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-card border border-border/50">
+                    <ThinkingDots />
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
+
+          {/* Quick prompts */}
+          {currentMessages.length === 1 && (
+            <div className="flex-shrink-0 px-6 py-4 border-t border-border/40 bg-muted/5 relative z-10">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Suggested</p>
+              <div className="flex flex-wrap gap-1.5">
+                {quickPrompts.map((p, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setMessage(p); inputRef.current?.focus() }}
+                    disabled={atLimit}
+                    className="text-[11px] font-medium px-3 py-1.5 rounded-xl border border-border/50 text-muted-foreground hover:text-foreground hover:border-violet-500/30 hover:bg-violet-500/5 transition-all"
+                  >
+                    {p}
+                  </button>
+                ))}
               </div>
+            </div>
+          )}
+
+          {/* Input */}
+          <div className="flex-shrink-0 px-5 py-5 border-t border-border/40 bg-card relative z-10">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => isListening ? recognitionRef.current?.stop() : (setIsListening(true), recognitionRef.current?.start())}
+                disabled={atLimit}
+                className={cn(
+                  "w-9 h-9 rounded-xl flex items-center justify-center border transition-all flex-shrink-0",
+                  isListening
+                    ? "bg-red-500/10 border-red-500/30 text-red-500"
+                    : "border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                )}
+              >
+                {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </button>
+
+              <input
+                ref={inputRef}
+                type="text"
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleSend()}
+                disabled={isLoading || atLimit}
+                placeholder={atLimit ? "Start a new chat to continue…" : "Ask me anything about your fitness…"}
+                className="flex-1 h-9 rounded-xl border border-border/50 bg-muted/10 px-3 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-violet-500/40 focus:border-violet-500/40 transition-colors"
+              />
+
+              <button
+                onClick={handleSend}
+                disabled={isLoading || !message.trim() || atLimit}
+                className={cn(
+                  "w-9 h-9 rounded-xl flex items-center justify-center transition-all flex-shrink-0",
+                  !isLoading && message.trim() && !atLimit
+                    ? "text-white shadow-sm"
+                    : "bg-muted/20 text-muted-foreground/30 cursor-not-allowed"
+                )}
+                style={!isLoading && message.trim() && !atLimit ? { background: PURPLE } : {}}
+              >
+                <Send className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         </div>
+
+        {/* ── Chat history sidebar ────────────────────── */}
+        <div className="flex flex-col min-h-0 rounded-3xl border border-border/50 bg-card overflow-hidden relative">
+
+          {/* Particle field — sidebar ambient element */}
+          <ParticleField />
+
+          {/* Header */}
+          <div className="flex-shrink-0 px-4 py-4 border-b border-border/50 flex items-center justify-between relative z-10">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-muted-foreground/60" />
+              <h3 className="text-sm font-bold text-foreground">History</h3>
+            </div>
+            <button
+              onClick={createNewSession}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-border/50 text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-all"
+            >
+              <Plus className="w-3 h-3" /> New
+            </button>
+          </div>
+
+          {/* Sessions */}
+          <div className="flex-1 min-h-0 relative z-10">
+            <div className="absolute inset-0 overflow-y-auto px-4 py-4 space-y-2.5">
+              {chatSessions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-2 text-center">
+                  <div className="w-10 h-10 rounded-2xl bg-muted/20 flex items-center justify-center">
+                    <MessageSquare className="w-4 h-4 text-muted-foreground/30" />
+                  </div>
+                  <p className="text-xs text-muted-foreground/50">No history yet</p>
+                  <p className="text-[10px] text-muted-foreground/35">Start chatting to see sessions here</p>
+                </div>
+              ) : (
+                chatSessions.map(s => (
+                  <div
+                    key={s._id}
+                    onClick={() => loadSession(s)}
+                    className={cn(
+                      "group p-4 rounded-2xl border cursor-pointer transition-all duration-150",
+                      currentSessionId === s._id
+                        ? "border-violet-500/30 bg-violet-500/8"
+                        : "border-border/40 hover:border-border/70 hover:bg-muted/10"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-foreground truncate">{s.title}</p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-0.5 line-clamp-2 leading-snug">
+                          {s.messages[s.messages.length - 1]?.content || "No messages"}
+                        </p>
+                        <div className="flex items-center gap-1 mt-1.5">
+                          <Clock className="w-2.5 h-2.5 text-muted-foreground/40" />
+                          <span className="text-[9px] text-muted-foreground/50">{fmtRelative(s.lastActivity)}</span>
+                          <span className="text-[9px] text-muted-foreground/35 ml-1">· {s.messages.length} msg</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={e => { e.stopPropagation(); deleteSession(s._id) }}
+                        className="w-5 h-5 rounded-md flex items-center justify-center text-muted-foreground/20 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 mt-0.5"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Footer hint */}
+          <div className="flex-shrink-0 px-4 py-3 border-t border-border/40 relative z-10">
+            <p className="text-[9px] text-muted-foreground/40 text-center">
+              Last 5 conversations · 10 msg/session limit
+            </p>
+          </div>
+        </div>
+      </div>
       </div>
     </div>
   )

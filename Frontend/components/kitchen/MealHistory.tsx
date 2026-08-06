@@ -1,42 +1,184 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { 
-  Calendar, 
-  Clock, 
-  Info, 
-  Star, 
-  Search, 
-  ChevronLeft, 
-  ChevronRight,
-  ChevronDown,
-  Utensils,
-  Loader2
-} from "lucide-react"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  Calendar, Clock, Info, Star, Search,
+  ChevronLeft, ChevronRight, ChevronDown,
+  Utensils, Loader2, Flame, Droplets, X,
+} from "lucide-react"
 import { mealsApi, hydrationApi } from "@/lib/api"
 import { useApi } from "@/hooks/useApi"
 import { formatTime } from "@/lib/timeUtils"
+import { cn } from "@/lib/utils"
 
 interface MealHistoryProps {
-  goals: {
-    calories: number
-    protein: number
-    carbs: number
-    fats: number
-    water: number
-  }
+  goals: { calories: number; protein: number; carbs: number; fats: number; water: number }
   onToggleFavorite: (id: string, currentState: boolean) => void
+}
+
+// ── Animated progress bar ──────────────────────────────────────────────────
+function AnimBar({ pct, color }: { pct: number; color: string }) {
+  return (
+    <div className="h-1.5 flex-1 rounded-full bg-muted/25 overflow-hidden">
+      <div
+        className="h-full rounded-full transition-all duration-700"
+        style={{ width: `${Math.min(pct, 100)}%`, background: color, boxShadow: `0 0 6px ${color}60` }}
+      />
+    </div>
+  )
+}
+
+// ── Single meal row inside expanded day ───────────────────────────────────
+function MealRow({ meal, onFavorite, onInfo }: { meal: any; onFavorite: () => void; onInfo: () => void }) {
+  const qty = meal.quantity || meal.baseQuantity || 100
+  const unit = meal.quantityType === "units" ? "pcs" : "g"
+  return (
+    <div className="flex items-center gap-3 py-2.5 px-3 rounded-2xl hover:bg-muted/20 transition-colors group/row">
+      {/* avatar */}
+      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500/20 to-indigo-500/10 flex items-center justify-center text-xs font-black text-violet-500 flex-shrink-0">
+        {meal.name?.charAt(0) ?? "?"}
+      </div>
+      {/* name + time */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-foreground truncate">{meal.name || "Unnamed"}</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60">
+            <Clock className="w-2.5 h-2.5" />
+            <span>{meal.date ? new Date(meal.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : meal.time || "—"}</span>
+          </div>
+          <span className="text-[10px] text-muted-foreground/50">{qty}{unit}</span>
+          {meal.isFavorite && <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />}
+        </div>
+      </div>
+      {/* macros */}
+      <div className="hidden sm:flex items-center gap-3 text-[10px]">
+        {[{ label: "P", val: meal.protein, color: "#ef4444" }, { label: "C", val: meal.carbs || meal.carbohydrates, color: "#06b6d4" }, { label: "F", val: meal.fats || meal.fat, color: "#f59e0b" }].map(m => (
+          <div key={m.label} className="text-center">
+            <p className="font-bold tabular-nums" style={{ color: m.color }}>{Math.round(m.val || 0)}g</p>
+            <p className="text-muted-foreground/50">{m.label}</p>
+          </div>
+        ))}
+      </div>
+      {/* kcal */}
+      <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-orange-500/10 border border-orange-500/15">
+        <Flame className="w-2.5 h-2.5 text-orange-500" />
+        <span className="text-[11px] font-black text-orange-500 tabular-nums">{meal.calories || 0}</span>
+      </div>
+      {/* actions */}
+      <div className="flex items-center gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
+        <button onClick={onFavorite} className="p-1 rounded-lg text-muted-foreground/50 hover:text-amber-500 transition-colors">
+          <Star className={cn("w-3.5 h-3.5", meal.isFavorite && "fill-amber-500 text-amber-500")} />
+        </button>
+        <button onClick={onInfo} className="p-1 rounded-lg text-muted-foreground/50 hover:text-foreground transition-colors">
+          <Info className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Individual All-Meals card with smooth grid-rows expand ─────────────────
+function HistoryMealCard({
+  meal, goals, onFavorite, onInfo,
+}: {
+  meal: any
+  goals: { protein: number; carbs: number; fats: number }
+  onFavorite: () => void
+  onInfo: () => void
+}) {
+  const [hovered, setHovered] = useState(false)
+  const fmtDateShort = (d: string) => new Date(d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
+  const fmtTime = (d: string) => new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+
+  return (
+    <Card
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={cn(
+        "bg-card/70 backdrop-blur-xl border-border/50 rounded-3xl p-4 shadow-sm transition-[transform,box-shadow] duration-200",
+        hovered && "-translate-y-0.5 shadow-md shadow-black/5"
+      )}
+    >
+      <div className="flex items-start gap-3">
+        {/* Avatar */}
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/10 flex items-center justify-center text-sm font-black text-violet-500 flex-shrink-0 mt-0.5">
+          {meal.name?.charAt(0) ?? "?"}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          {/* Name + badges */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-sm font-bold text-foreground">{meal.name}</h3>
+            {meal.isFavorite && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 border border-amber-500/20">
+                <Star className="w-2.5 h-2.5 fill-amber-500" /> Fav
+              </span>
+            )}
+            <span className="text-[10px] text-muted-foreground/60 px-1.5 py-0.5 rounded-lg bg-muted/30">
+              {meal.quantity || meal.baseQuantity || 100}{meal.quantityType === "units" ? "pcs" : "g"}
+            </span>
+          </div>
+
+          {/* Date + time */}
+          <div className="flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground/60">
+            <Calendar className="w-2.5 h-2.5" />
+            <span>{fmtDateShort(meal.date)}</span>
+            <span className="mx-0.5">·</span>
+            <Clock className="w-2.5 h-2.5" />
+            <span>{fmtTime(meal.date)}</span>
+          </div>
+
+          {/*
+            CSS grid-rows trick: animates between grid-template-rows: 0fr and 1fr.
+            This always expands to EXACTLY the content height — no jump, no lag.
+            The inner div needs min-h-0 and overflow-hidden for the trick to work.
+          */}
+          <div
+            className="grid transition-[grid-template-rows] duration-300 ease-out"
+            style={{ gridTemplateRows: hovered ? "1fr" : "0fr" }}
+          >
+            <div className="overflow-hidden min-h-0">
+              <div className="mt-2.5 space-y-1.5 pb-0.5">
+                {[
+                  { label: "P", val: meal.protein, max: goals.protein, color: "#ef4444" },
+                  { label: "C", val: meal.carbs,   max: goals.carbs,   color: "#06b6d4" },
+                  { label: "F", val: meal.fats,    max: goals.fats,    color: "#f59e0b" },
+                ].map(m => (
+                  <div key={m.label} className="flex items-center gap-2">
+                    <span className="text-[9px] font-bold w-3" style={{ color: m.color }}>{m.label}</span>
+                    <AnimBar pct={(m.val / (m.max || 1)) * 100} color={m.color} />
+                    <span className="text-[9px] tabular-nums text-muted-foreground/60 w-8 text-right">{Math.round(m.val || 0)}g</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Calorie badge + actions */}
+        <div className="flex flex-col items-end gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-orange-500/10 border border-orange-500/15">
+            <Flame className="w-3 h-3 text-orange-500" />
+            <span className="text-sm font-black text-orange-500 tabular-nums">{meal.calories}</span>
+            <span className="text-[9px] text-orange-500/60">kcal</span>
+          </div>
+          <div
+            className="flex items-center gap-1 transition-opacity duration-200"
+            style={{ opacity: hovered ? 1 : 0 }}
+          >
+            <button onClick={onFavorite} className="p-1.5 rounded-lg text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors">
+              <Star className={cn("w-3.5 h-3.5", meal.isFavorite && "fill-amber-500 text-amber-500")} />
+            </button>
+            <button onClick={onInfo} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+              <Info className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </Card>
+  )
 }
 
 export function MealHistory({ goals, onToggleFavorite }: MealHistoryProps) {
@@ -44,717 +186,409 @@ export function MealHistory({ goals, onToggleFavorite }: MealHistoryProps) {
   const [allMeals, setAllMeals] = useState<any[]>([])
   const [dailyEntries, setDailyEntries] = useState<any[]>([])
   const [selectedMeal, setSelectedMeal] = useState<any>(null)
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState("all")
+  const [activeTab, setActiveTab] = useState<"all" | "daily">("all")
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
-  
-  const mealsPerPage = 10
+  const mealsPerPage = 8
 
-  // Fetch all meals for history
-  const fetchAllMeals = async () => {
+  const calcTotals = (meals: any[]) =>
+    (meals || []).reduce((a, m) => ({
+      calories: a.calories + (Number(m.calories) || 0),
+      protein:  a.protein  + (Number(m.protein)  || 0),
+      carbs:    a.carbs    + (Number(m.carbs) || Number(m.carbohydrates) || 0),
+      fats:     a.fats     + (Number(m.fats)  || Number(m.fat) || 0),
+    }), { calories: 0, protein: 0, carbs: 0, fats: 0 })
+
+  const fetchAll = async () => {
     setIsLoading(true)
-    try {
-      const data = await api.meals.getHistory(100, 1)
-      setAllMeals(data.meals || [])
-    } catch (error) {
-      console.error("Failed to fetch meal history", error)
-      setAllMeals([])
-    } finally {
-      setIsLoading(false)
-    }
+    try { setAllMeals((await api.meals.getHistory(100, 1)).meals || []) }
+    catch { setAllMeals([]) }
+    finally { setIsLoading(false) }
   }
 
-  // Helper function to calculate daily totals from meals
-  const calculateDailyTotals = (meals: any[]) => {
-    console.log('Calculating totals for meals:', meals)
-    
-    if (!meals || meals.length === 0) {
-      console.log('No meals found, returning zeros')
-      return { calories: 0, protein: 0, carbs: 0, fats: 0 }
-    }
-    
-    const totals = meals.reduce((acc: any, meal: any) => {
-      console.log('Processing meal:', meal)
-      const calories = Number(meal.calories) || 0
-      const protein = Number(meal.protein) || 0
-      const carbs = Number(meal.carbs) || Number(meal.carbohydrates) || 0
-      const fats = Number(meal.fats) || Number(meal.fat) || 0
-      
-      console.log(`Meal ${meal.name}: ${calories}cal, ${protein}p, ${carbs}c, ${fats}f`)
-      
-      return {
-        calories: acc.calories + calories,
-        protein: acc.protein + protein,
-        carbs: acc.carbs + carbs,
-        fats: acc.fats + fats
-      }
-    }, { calories: 0, protein: 0, carbs: 0, fats: 0 })
-    
-    console.log('Final calculated totals:', totals)
-    return totals
-  }
-
-  // Fetch daily entries (days with meals)
-  const fetchDailyEntries = async () => {
+  const fetchDaily = async () => {
     setIsLoading(true)
     try {
-      // Try to get both meals and hydration data
-      const [mealsData, hydrationData] = await Promise.all([
-        mealsApi.getDailyEntries(),
-        hydrationApi.getWeekly().catch(() => ({ weeklyHydration: [] }))
+      // Fetch daily entry summaries AND full history in parallel.
+      // getDailyEntries gives us pre-computed totals/counts but NO meal arrays.
+      // getHistory gives us every meal with its date, so we can group by date.
+      const [entriesData, hydData, historyData] = await Promise.all([
+        mealsApi.getDailyEntries().catch(() => ({ dailyEntries: [] })),
+        hydrationApi.getWeekly().catch(() => ({ weeklyHydration: [] })),
+        mealsApi.getHistory(500, 1).catch(() => ({ meals: [] })),
       ])
-      
-      const dailyMeals = mealsData.dailyEntries || []
-      const weeklyHydration = hydrationData.weeklyHydration || []
-      
-      // Debug: Log the data structure
-      console.log('Daily entries data:', dailyMeals)
-      
-      // Merge meals and hydration data, and calculate macros if missing
-      const entriesWithHydration = dailyMeals.map((entry: any) => {
-        const hydrationForDay = weeklyHydration.find((h: any) => h.date === entry.date)
-        
-        console.log('Processing entry for date:', entry.date)
-        console.log('Entry object keys:', Object.keys(entry))
-        console.log('Entry meals property:', entry.meals)
-        console.log('Entry meals type:', typeof entry.meals)
-        console.log('Entry meals length:', entry.meals ? entry.meals.length : 'undefined')
-        console.log('Entry mealCount:', entry.mealCount)
-        console.log('Full entry object:', JSON.stringify(entry, null, 2))
-        
-        // Always calculate macros from individual meals to ensure accuracy
-        // Try different possible property names for meals
-        const mealsArray = entry.meals || entry.mealsList || entry.dailyMeals || entry.entries || []
-        console.log('Using meals array:', mealsArray)
-        
-        const calculated = calculateDailyTotals(mealsArray)
-        
-        const processedEntry = {
-          ...entry,
-          meals: mealsArray, // Ensure meals property is set correctly
-          totalCalories: calculated.calories,
-          totalProtein: calculated.protein,
-          totalCarbs: calculated.carbs,
-          totalFats: calculated.fats,
-          waterIntake: hydrationForDay?.amount || 0
-        }
-        
-        console.log('Processed entry:', processedEntry)
-        return processedEntry
+
+      const weeklyHydration: any[] = hydData.weeklyHydration || []
+      const rawEntries: any[] = entriesData.dailyEntries || []
+      const allHistoryMeals: any[] = historyData.meals || []
+
+      // Group history meals by ISO date string (YYYY-MM-DD)
+      const mealsByDate: Record<string, any[]> = {}
+      allHistoryMeals.forEach((m: any) => {
+        // meal.date could be an ISO timestamp or a date string
+        const key = new Date(m.date).toISOString().split('T')[0]
+        mealsByDate[key] = [...(mealsByDate[key] || []), m]
       })
-      
-      console.log('Processed daily entries:', entriesWithHydration)
-      
-      // If no meals are found in entries but mealCount > 0, try to fetch meals separately
-      const entriesWithMeals = await Promise.all(
-        entriesWithHydration.map(async (entry: any) => {
-          if (entry.mealCount > 0 && (!entry.meals || entry.meals.length === 0)) {
-            console.log(`Fetching meals for date ${entry.date} separately`)
-            try {
-              // Try to fetch meals for this specific date
-              const dateStr = entry.date
-              const mealsForDate = await api.meals.getByDate?.(dateStr) || 
-                                   await api.meals.getDaily?.(dateStr) ||
-                                   await api.call(`/api/meals/date/${dateStr}`)
-              
-              console.log(`Fetched meals for ${dateStr}:`, mealsForDate)
-              
-              if (mealsForDate && mealsForDate.meals) {
-                const calculated = calculateDailyTotals(mealsForDate.meals)
-                return {
-                  ...entry,
-                  meals: mealsForDate.meals,
-                  totalCalories: calculated.calories,
-                  totalProtein: calculated.protein,
-                  totalCarbs: calculated.carbs,
-                  totalFats: calculated.fats,
-                }
-              }
-            } catch (error) {
-              console.error(`Failed to fetch meals for ${entry.date}:`, error)
-            }
+
+      if (rawEntries.length > 0) {
+        // Merge server summaries with actual meal arrays from history
+        const entries = rawEntries.map((entry: any) => {
+          const meals = mealsByDate[entry.date] || []
+          const hyd = weeklyHydration.find((h: any) => h.date === entry.date)
+          // Re-calculate totals from real meals when available, otherwise keep server totals
+          const totals = meals.length > 0 ? calcTotals(meals) : null
+          return {
+            ...entry,
+            meals,
+            totalCalories: totals?.calories ?? entry.totalCalories ?? 0,
+            totalProtein:  totals?.protein  ?? entry.totalProtein  ?? 0,
+            totalCarbs:    totals?.carbs    ?? entry.totalCarbs    ?? 0,
+            totalFats:     totals?.fats     ?? entry.totalFats     ?? 0,
+            waterIntake: hyd?.amount || 0,
           }
-          return entry
         })
-      )
-      
-      console.log('Final entries with meals:', entriesWithMeals)
-      setDailyEntries(entriesWithMeals)
-    } catch (error) {
-      console.error("Daily entries endpoint failed, using fallback", error)
-      // Fallback 1: Use weekly data to create daily entries
-      try {
-        const [weeklyMealsData, weeklyHydrationData] = await Promise.all([
-          mealsApi.getWeeklyDetailed(),
-          hydrationApi.getWeekly().catch(() => ({ weeklyHydration: [] }))
-        ])
-        
-        if (weeklyMealsData.weeklyMeals) {
-          const weeklyHydration = weeklyHydrationData.weeklyHydration || []
-          
-          const entries = weeklyMealsData.weeklyMeals
-            .filter((day: any) => day.meals && day.meals.length > 0)
-            .map((day: any) => {
-              const hydrationForDay = weeklyHydration.find((h: any) => h.date === day.date)
-              const calculated = calculateDailyTotals(day.meals || [])
-              
-              return {
-                date: day.date,
-                mealCount: day.meals.length,
-                totalCalories: day.totals?.calories || calculated.calories,
-                totalProtein: day.totals?.protein || calculated.protein,
-                totalCarbs: day.totals?.carbs || calculated.carbs,
-                totalFats: day.totals?.fats || calculated.fats,
-                waterIntake: hydrationForDay?.amount || 0,
-                meals: day.meals
-              }
-            })
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-          
-          setDailyEntries(entries)
-        } else {
-          // Fallback 2: Use meal history and group by date
-          console.log("Using meal history fallback")
-          const historyData = await api.meals.getHistory(100, 1)
-          const allMeals = historyData.meals || []
-          
-          if (allMeals.length > 0) {
-            const groupedByDate = groupMealsByDate(allMeals)
-            const weeklyHydration = weeklyHydrationData?.weeklyHydration || []
-            
-            const entries = Object.entries(groupedByDate)
-              .map(([date, meals]: [string, any]) => {
-                const hydrationForDay = weeklyHydration.find((h: any) => h.date === date)
-                const calculated = calculateDailyTotals(meals)
-                
-                return {
-                  date,
-                  mealCount: meals.length,
-                  totalCalories: calculated.calories,
-                  totalProtein: calculated.protein,
-                  totalCarbs: calculated.carbs,
-                  totalFats: calculated.fats,
-                  waterIntake: hydrationForDay?.amount || 0,
-                  meals: meals
-                }
-              })
-              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            
-            console.log("Grouped entries from history:", entries)
-            setDailyEntries(entries)
-          } else {
-            setDailyEntries([])
-          }
-        }
-      } catch (fallbackError) {
-        console.error("All fallbacks failed", fallbackError)
-        setDailyEntries([])
+        setDailyEntries(entries)
+        return
       }
+
+      // No daily entries from server — build entirely from history
+      if (Object.keys(mealsByDate).length > 0) {
+        const entries = Object.entries(mealsByDate)
+          .map(([date, ms]) => {
+            const totals = calcTotals(ms)
+            const hyd = weeklyHydration.find((h: any) => h.date === date)
+            return {
+              date,
+              mealCount: ms.length,
+              meals: ms,
+              waterIntake: hyd?.amount || 0,
+              totalCalories: totals.calories,
+              totalProtein:  totals.protein,
+              totalCarbs:    totals.carbs,
+              totalFats:     totals.fats,
+            }
+          })
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        setDailyEntries(entries)
+        return
+      }
+
+      setDailyEntries([])
+    } catch (err) {
+      console.error('fetchDaily failed:', err)
+      setDailyEntries([])
     } finally {
       setIsLoading(false)
     }
   }
 
-  useEffect(() => {
-    if (activeTab === 'all') {
-      fetchAllMeals()
-    } else {
-      fetchDailyEntries()
-    }
-  }, [activeTab])
+  useEffect(() => { activeTab === "all" ? fetchAll() : fetchDaily() }, [activeTab])
 
-  const handleViewDetails = (meal: any) => {
-    setSelectedMeal(meal)
-    setIsDetailsOpen(true)
+  const filtered = allMeals.filter(m => m.name?.toLowerCase().includes(searchQuery.toLowerCase()))
+  const totalPages = Math.ceil(filtered.length / mealsPerPage)
+  const paginated = filtered.slice((currentPage - 1) * mealsPerPage, currentPage * mealsPerPage)
+
+  const toggleDay = (date: string) => {
+    const s = new Set(expandedDays)
+    s.has(date) ? s.delete(date) : s.add(date)
+    setExpandedDays(s)
   }
 
-  const toggleDayExpansion = (date: string) => {
-    const newExpanded = new Set(expandedDays)
-    if (newExpanded.has(date)) {
-      newExpanded.delete(date)
-    } else {
-      newExpanded.add(date)
-    }
-    setExpandedDays(newExpanded)
-  }
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString(undefined, { 
-      weekday: "long", 
-      year: "numeric", 
-      month: "long", 
-      day: "numeric" 
-    })
-  }
-
-  const formatTime12Hour = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleTimeString(undefined, { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true
-    })
-  }
-
-  // Group meals by date for daily view
-  const groupMealsByDate = (meals: any[]) => {
-    const grouped: { [key: string]: any[] } = {}
-    
-    meals.forEach(meal => {
-      const date = new Date(meal.date).toISOString().split('T')[0]
-      if (!grouped[date]) {
-        grouped[date] = []
-      }
-      grouped[date].push(meal)
-    })
-    
-    return grouped
-  }
-
-  // Filter meals based on search
-  const filteredMeals = allMeals.filter(meal =>
-    meal.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
-  // Paginate meals
-  const totalPages = Math.ceil(filteredMeals.length / mealsPerPage)
-  const paginatedMeals = filteredMeals.slice(
-    (currentPage - 1) * mealsPerPage,
-    currentPage * mealsPerPage
-  )
+  const fmtDate = (d: string) => new Date(d).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })
+  const fmtDateShort = (d: string) => new Date(d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
+  const fmtTime = (d: string) => new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 
   return (
-    <div className="w-full space-y-6">
+    <div className="space-y-5">
+      {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-foreground font-inter">Meal History</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            View, edit, or manage your nutrition journey
-          </p>
+          <h2 className="text-xl font-bold text-foreground">Meal History</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Track your complete nutrition journey</p>
         </div>
-        <div className="text-sm text-muted-foreground">
-          Total: {allMeals.length} meals
-        </div>
+        <span className="text-xs text-muted-foreground/60 tabular-nums">{allMeals.length} meals logged</span>
       </div>
 
-      {/* Tabs for All Meals vs Daily Entries */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="bg-card/80 backdrop-blur-xl border border-border/50 p-1 rounded-2xl shadow-lg shadow-primary/5">
-          <TabsTrigger value="all" className="gap-2 rounded-xl font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25">
-            <Utensils className="w-4 h-4" />
-            All Meals
-          </TabsTrigger>
-          <TabsTrigger value="daily" className="gap-2 rounded-xl font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25">
-            <Calendar className="w-4 h-4" />
-            Daily Entries
-          </TabsTrigger>
-        </TabsList>
+      {/* ── Tab pills ── */}
+      <div className="flex gap-2">
+        {(["all", "daily"] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={cn(
+              "flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200",
+              activeTab === tab
+                ? "bg-gradient-to-r from-violet-500 to-indigo-500 text-white shadow-md shadow-violet-500/25"
+                : "bg-card/80 border border-border/50 text-muted-foreground hover:text-foreground hover:border-violet-500/30"
+            )}
+          >
+            {tab === "all" ? <Utensils className="w-3.5 h-3.5" /> : <Calendar className="w-3.5 h-3.5" />}
+            {tab === "all" ? "All Meals" : "By Day"}
+          </button>
+        ))}
+      </div>
 
-        {/* All Meals Tab */}
-        <TabsContent value="all" className="mt-6">
-          <div className="space-y-4">
-            {/* Search Bar */}
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search meals by name..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 bg-background/50 border-border backdrop-blur-sm text-foreground placeholder:text-muted-foreground focus:border-green-500/50 focus:ring-2 focus:ring-green-500/20 rounded-xl"
-              />
+      {/* ── All Meals Tab ── */}
+      {activeTab === "all" && (
+        <div className="space-y-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+            <Input
+              placeholder="Search meals…"
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1) }}
+              className="pl-10 h-11 bg-card/70 border-border/50 rounded-2xl backdrop-blur-sm focus-visible:ring-violet-500/30 placeholder:text-muted-foreground/40"
+            />
+          </div>
+
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+              <p className="text-sm text-muted-foreground">Loading history…</p>
+            </div>
+          ) : paginated.length === 0 ? (
+            <div className="flex flex-col items-center py-16 gap-3">
+              <div className="p-4 rounded-3xl bg-muted/20">
+                <Utensils className="w-10 h-10 text-muted-foreground/30" />
+              </div>
+              <p className="text-sm font-semibold text-muted-foreground">{searchQuery ? "No meals match your search" : "No meal history yet"}</p>
+              <p className="text-xs text-muted-foreground/60">Start logging meals to see them here</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {paginated.map((meal) => (
+                <HistoryMealCard
+                  key={meal._id}
+                  meal={meal}
+                  goals={goals}
+                  onFavorite={() => onToggleFavorite(meal._id, meal.isFavorite)}
+                  onInfo={() => setSelectedMeal(meal)}
+                />
+              ))}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-1">
+                  <p className="text-xs text-muted-foreground/60">Page {currentPage}/{totalPages} · {filtered.length} meals</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="p-2 rounded-xl border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/30 disabled:opacity-30 transition-colors"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="p-2 rounded-xl border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/30 disabled:opacity-30 transition-colors"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Daily Tab ── */}
+      {activeTab === "daily" && (
+        <div className="space-y-3">
+          {isLoading ? (
+            <div className="flex flex-col items-center py-16 gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+              <p className="text-sm text-muted-foreground">Loading daily entries…</p>
+            </div>
+          ) : dailyEntries.length === 0 ? (
+            <div className="flex flex-col items-center py-16 gap-3">
+              <div className="p-4 rounded-3xl bg-muted/20">
+                <Calendar className="w-10 h-10 text-muted-foreground/30" />
+              </div>
+              <p className="text-sm font-semibold text-muted-foreground">No daily entries yet</p>
+              <p className="text-xs text-muted-foreground/60">Log meals to see daily summaries</p>
+            </div>
+          ) : (
+            dailyEntries.map(entry => {
+              const isExp = expandedDays.has(entry.date)
+              const calPct = Math.min(((entry.totalCalories || 0) / goals.calories) * 100, 100)
+              const waterPct = Math.min(((entry.waterIntake || 0) / goals.water) * 100, 100)
+
+              return (
+                <Card key={entry.date} className="bg-card/70 backdrop-blur-xl border-border/50 rounded-3xl overflow-hidden shadow-sm hover:shadow-md hover:shadow-black/5 transition-all duration-200">
+                  {/* ── Header ── */}
+                  <button
+                    className="w-full p-4 flex items-center gap-4 hover:bg-muted/15 transition-colors text-left"
+                    onClick={() => toggleDay(entry.date)}
+                  >
+                    {/* Date pill */}
+                    <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/10 flex flex-col items-center justify-center">
+                      <span className="text-xs font-black text-violet-500 leading-none">
+                        {new Date(entry.date).toLocaleDateString("en-US", { month: "short" }).toUpperCase()}
+                      </span>
+                      <span className="text-lg font-black text-violet-600 dark:text-violet-400 leading-none">
+                        {new Date(entry.date).getDate()}
+                      </span>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-foreground">{fmtDate(entry.date)}</p>
+                      <p className="text-xs text-muted-foreground/60 mt-0.5">
+                        {entry.mealCount || entry.meals?.length || 0} meals logged
+                      </p>
+                      {/* Calorie progress bar */}
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className="flex-1 h-1.5 rounded-full bg-muted/25 overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-700"
+                            style={{
+                              width: `${calPct}%`,
+                              background: calPct >= 90 ? "linear-gradient(to right, #8b5cf6, #a855f7)" : "linear-gradient(to right, #f97316, #ea580c)",
+                              boxShadow: calPct >= 90 ? "0 0 6px #8b5cf660" : "0 0 6px #f9731660",
+                            }}
+                          />
+                        </div>
+                        <span className="text-[10px] tabular-nums text-muted-foreground/60">{Math.round(calPct)}%</span>
+                      </div>
+                    </div>
+
+                    <div className="flex-shrink-0 text-right">
+                      <div className="flex items-center gap-1 justify-end">
+                        <Flame className="w-3.5 h-3.5 text-orange-500" />
+                        <span className="text-base font-black text-foreground tabular-nums">{entry.totalCalories || 0}</span>
+                        <span className="text-[10px] text-muted-foreground">kcal</span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 text-[10px]">
+                        <span className="text-red-400 tabular-nums">{Math.round(entry.totalProtein || 0)}g P</span>
+                        <span className="text-cyan-400 tabular-nums">{Math.round(entry.totalCarbs || 0)}g C</span>
+                        <span className="text-amber-400 tabular-nums">{Math.round(entry.totalFats || 0)}g F</span>
+                      </div>
+                    </div>
+
+                    <ChevronDown className={cn("w-4 h-4 text-muted-foreground/50 flex-shrink-0 transition-transform duration-300", isExp && "rotate-180")} />
+                  </button>
+
+                  {/* ── Expanded ── */}
+                  {isExp && (
+                    <div className="border-t border-border/40 px-4 pb-4 pt-3 space-y-3">
+                      {/* Summary tiles */}
+                      <div className="grid grid-cols-4 gap-2">
+                        {[
+                          { label: "Calories", val: `${entry.totalCalories || 0}`, unit: "kcal", color: "#f97316" },
+                          { label: "Protein",  val: `${Math.round(entry.totalProtein || 0)}`, unit: "g", color: "#ef4444" },
+                          { label: "Carbs",    val: `${Math.round(entry.totalCarbs || 0)}`,   unit: "g", color: "#06b6d4" },
+                          { label: "Fats",     val: `${Math.round(entry.totalFats || 0)}`,    unit: "g", color: "#f59e0b" },
+                        ].map(t => (
+                          <div key={t.label} className="flex flex-col items-center p-2.5 rounded-2xl border"
+                            style={{ background: `${t.color}10`, borderColor: `${t.color}20` }}>
+                            <p className="text-base font-black tabular-nums" style={{ color: t.color }}>{t.val}</p>
+                            <p className="text-[9px] text-muted-foreground">{t.unit}</p>
+                            <p className="text-[9px] text-muted-foreground/60">{t.label}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Water bar */}
+                      {entry.waterIntake > 0 && (
+                        <div className="flex items-center gap-2 px-1">
+                          <Droplets className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+                          <div className="flex-1 h-1.5 rounded-full bg-muted/25 overflow-hidden">
+                            <div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-700" style={{ width: `${waterPct}%` }} />
+                          </div>
+                          <span className="text-[10px] text-cyan-400 tabular-nums">{entry.waterIntake}ml</span>
+                        </div>
+                      )}
+
+                      {/* Meals */}
+                      {entry.meals?.length > 0 ? (
+                        <div>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 px-1">
+                            Meals ({entry.meals.length})
+                          </p>
+                          <div className="divide-y divide-border/30">
+                            {entry.meals.map((meal: any, i: number) => (
+                              <MealRow
+                                key={meal._id || meal.id || i}
+                                meal={meal}
+                                onFavorite={() => onToggleFavorite(meal._id || meal.id, meal.isFavorite)}
+                                onInfo={() => setSelectedMeal(meal)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground/50 text-center py-2">No individual meals found for this day</p>
+                      )}
+                    </div>
+                  )}
+                </Card>
+              )
+            })
+          )}
+        </div>
+      )}
+
+      {/* ── Detail Modal ── */}
+      {selectedMeal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedMeal(null)}>
+          <div className="bg-card border border-border/50 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="p-5 border-b border-border/40 bg-gradient-to-r from-violet-500/8 to-transparent relative">
+              <button onClick={() => setSelectedMeal(null)} className="absolute top-4 right-4 p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50">
+                <X className="w-4 h-4" />
+              </button>
+              <h3 className="text-lg font-bold text-foreground pr-8">{selectedMeal.name}</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                {selectedMeal.date && fmtDateShort(selectedMeal.date)} · {selectedMeal.date ? fmtTime(selectedMeal.date) : selectedMeal.time}
+              </p>
+              <div className="flex items-center gap-1.5 mt-3 w-fit px-3 py-1.5 rounded-xl bg-orange-500/10 border border-orange-500/20">
+                <Flame className="w-4 h-4 text-orange-500" />
+                <span className="text-xl font-black text-orange-500 tabular-nums">{selectedMeal.calories}</span>
+                <span className="text-xs text-orange-500/60">kcal</span>
+              </div>
             </div>
 
-            {isLoading ? (
-              <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5 p-12 text-center">
-                <Loader2 className="w-8 h-8 mx-auto animate-spin text-green-500 mb-4" />
-                <p className="text-muted-foreground">Loading meal history...</p>
-              </div>
-            ) : paginatedMeals.length === 0 ? (
-              <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5 p-12 text-center">
-                <Utensils className="w-12 h-12 mx-auto text-muted-foreground opacity-30 mb-4" />
-                <p className="text-muted-foreground font-medium">No meal history yet</p>
-                <p className="text-sm text-muted-foreground/70 mt-2">
-                  Start logging your meals to see them here
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {paginatedMeals.map((meal) => (
-                  <div 
-                    key={meal._id} 
-                    className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-lg shadow-primary/5 hover:shadow-xl hover:shadow-primary/10 transition-all duration-200"
-                  >
-                    <div className="p-6">
-                      <div className="flex flex-col gap-4">
-                        {/* Meal Header */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <h3 className="text-lg font-bold text-foreground">
-                              {meal.name}
-                            </h3>
-                            {meal.isFavorite && (
-                              <span className="px-2 py-1 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-500 text-xs font-semibold rounded-full border border-yellow-500/30">
-                                ⭐ Favorite
-                              </span>
-                            )}
-                            <span className="px-2 py-1 bg-muted/50 text-muted-foreground text-xs font-medium rounded-full">
-                              {meal.quantity || meal.baseQuantity || 100}g
-                            </span>
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {formatDate(meal.date)} • {formatTime12Hour(meal.date)}
-                          </div>
-                        </div>
-
-                        {/* Nutrition Info */}
-                        <div className="flex items-center justify-between p-3 bg-background/50 rounded-xl border border-border backdrop-blur-sm">
-                          <div className="flex items-center gap-4">
-                            <span className="text-sm font-medium text-muted-foreground min-w-[60px]">
-                              Nutrition
-                            </span>
-                            <span className="text-sm font-bold text-foreground">
-                              {meal.calories} kcal
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              P: {Math.round(meal.protein)}g
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              C: {Math.round(meal.carbs)}g
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              F: {Math.round(meal.fats)}g
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onToggleFavorite(meal._id, meal.isFavorite)}
-                              className="h-8 w-8 p-0 text-yellow-500 hover:text-yellow-600 hover:bg-yellow-500/10 rounded-lg"
-                              title="Toggle favorite"
-                            >
-                              <Star className={`w-4 h-4 ${meal.isFavorite ? 'fill-yellow-500' : ''}`} />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleViewDetails(meal)}
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg"
-                            >
-                              <Info className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      Page {currentPage} of {totalPages} • {filteredMeals.length} meals
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1}
-                        className="border-border/50 text-muted-foreground hover:text-foreground hover:bg-background/50 rounded-xl"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                        disabled={currentPage === totalPages}
-                        className="border-border/50 text-muted-foreground hover:text-foreground hover:bg-background/50 rounded-xl"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        {/* Daily Entries Tab */}
-        <TabsContent value="daily" className="mt-6">
-          <div className="space-y-4">
-            {isLoading ? (
-              <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5 p-12 text-center">
-                <Loader2 className="w-8 h-8 mx-auto animate-spin text-green-500 mb-4" />
-                <p className="text-muted-foreground">Loading daily entries...</p>
-              </div>
-            ) : dailyEntries.length === 0 ? (
-              <div className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-2xl shadow-primary/5 p-12 text-center">
-                <Calendar className="w-12 h-12 mx-auto text-muted-foreground opacity-30 mb-4" />
-                <p className="text-muted-foreground font-medium">No daily entries yet</p>
-                <p className="text-sm text-muted-foreground/70 mt-2">
-                  Start logging meals to see daily summaries
-                </p>
-              </div>
-            ) : (
-              dailyEntries.map((entry) => {
-                const isExpanded = expandedDays.has(entry.date)
-                return (
-                  <div 
-                    key={entry.date}
-                    className="bg-card/80 backdrop-blur-xl border border-border rounded-3xl shadow-lg shadow-primary/5 hover:shadow-xl hover:shadow-primary/10 transition-all duration-200"
-                  >
-                    {/* Clickable Header */}
-                    <div 
-                      className="p-6 cursor-pointer hover:bg-background/30 transition-colors rounded-t-3xl"
-                      onClick={() => toggleDayExpansion(entry.date)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-lg font-bold text-foreground">
-                            {formatDate(entry.date)}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {entry.mealCount} meal{entry.mealCount !== 1 ? 's' : ''} • {entry.waterIntake || 0}ml water
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <div className="text-lg font-bold text-foreground">{entry.totalCalories}</div>
-                            <div className="text-xs text-muted-foreground">calories</div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              P: {Math.round(entry.totalProtein || 0)}g • C: {Math.round(entry.totalCarbs || 0)}g • F: {Math.round(entry.totalFats || 0)}g
-                            </div>
-                          </div>
-                          <div className={`transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-                            <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Expandable Details */}
-                    {isExpanded && (
-                      <div className="px-6 pb-6 border-t border-border">
-                        <div className="pt-4 space-y-4">
-                          {/* Daily Nutrition Summary */}
-                          <div className="p-4 bg-gradient-to-r from-green-500/10 via-transparent to-emerald-500/10 rounded-xl border border-green-500/20">
-                            <h4 className="text-sm font-semibold text-foreground mb-3">Daily Nutrition Summary</h4>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                              <div className="text-center">
-                                <div className="text-2xl font-bold text-green-500">{entry.totalCalories || 0}</div>
-                                <div className="text-xs text-muted-foreground">Calories</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-lg font-bold text-foreground">{Math.round(entry.totalProtein || 0)}g</div>
-                                <div className="text-xs text-muted-foreground">Protein</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-lg font-bold text-foreground">{Math.round(entry.totalCarbs || 0)}g</div>
-                                <div className="text-xs text-muted-foreground">Carbs</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-lg font-bold text-foreground">{Math.round(entry.totalFats || 0)}g</div>
-                                <div className="text-xs text-muted-foreground">Fats</div>
-                              </div>
-                            </div>
-                            <div className="mt-3 pt-3 border-t border-green-500/20">
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">Water Intake:</span>
-                                <span className="text-blue-500 font-medium">
-                                  {entry.waterIntake || 0}ml ({Math.round(((entry.waterIntake || 0) / goals.water) * 100)}% of goal)
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Individual Meals */}
-                          {entry.meals && entry.meals.length > 0 ? (
-                            <div className="space-y-3">
-                              <h4 className="text-sm font-semibold text-foreground">Individual Meals ({entry.meals.length})</h4>
-                              {entry.meals.map((meal: any, index: number) => (
-                                <div key={meal._id || meal.id || index} className="p-4 bg-background/50 rounded-xl border border-border backdrop-blur-sm">
-                                  <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-3">
-                                      <span className="text-base font-semibold text-foreground">
-                                        {meal.name || 'Unnamed Meal'}
-                                      </span>
-                                      {meal.isFavorite && (
-                                        <span className="px-2 py-1 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-500 text-xs font-semibold rounded-full border border-yellow-500/30">
-                                          ⭐ Favorite
-                                        </span>
-                                      )}
-                                      <span className="px-2 py-1 bg-muted/50 text-muted-foreground text-xs font-medium rounded-full">
-                                        {meal.quantity || meal.baseQuantity || 100}g
-                                      </span>
-                                    </div>
-                                    <span className="text-sm text-muted-foreground/70">
-                                      {meal.date ? formatTime12Hour(meal.date) : meal.time || 'No time'}
-                                    </span>
-                                  </div>
-                                  
-                                  {/* Nutrition Details */}
-                                  <div className="flex items-center justify-between p-2 bg-background/80 rounded-lg border border-border/50">
-                                    <div className="flex items-center gap-3">
-                                      <span className="text-sm font-medium text-muted-foreground min-w-[50px]">
-                                        Nutrition
-                                      </span>
-                                      <span className="text-sm font-bold text-foreground">
-                                        {meal.calories || 0} kcal
-                                      </span>
-                                      <span className="text-xs text-muted-foreground">
-                                        P: {Math.round(meal.protein || 0)}g
-                                      </span>
-                                      <span className="text-xs text-muted-foreground">
-                                        C: {Math.round(meal.carbs || meal.carbohydrates || 0)}g
-                                      </span>
-                                      <span className="text-xs text-muted-foreground">
-                                        F: {Math.round(meal.fats || meal.fat || 0)}g
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          if (meal._id || meal.id) {
-                                            onToggleFavorite(meal._id || meal.id, meal.isFavorite)
-                                          }
-                                        }}
-                                        className="h-7 w-7 p-0 text-yellow-500 hover:text-yellow-600 hover:bg-yellow-500/10 rounded-lg"
-                                        title="Toggle favorite"
-                                      >
-                                        <Star className={`w-3 h-3 ${meal.isFavorite ? 'fill-yellow-500' : ''}`} />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          handleViewDetails(meal)
-                                        }}
-                                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg"
-                                      >
-                                        <Info className="w-3 h-3" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="p-4 bg-background/50 rounded-xl border border-border backdrop-blur-sm text-center">
-                              <p className="text-muted-foreground">No meals found for this day</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* Details Dialog */}
-      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card/95 backdrop-blur-xl border border-border rounded-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-inter">Meal Details</DialogTitle>
-            <DialogDescription>
-              Complete nutritional information for this meal
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedMeal && (
-            <div className="space-y-6 mt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Meal Name</label>
-                  <p className="text-lg font-semibold text-foreground mt-1">
-                    {selectedMeal.name}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Favorite Status</label>
-                  <p className="text-lg font-semibold text-foreground mt-1 flex items-center gap-2">
-                    {selectedMeal.isFavorite ? (
-                      <>
-                        <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />
-                        <span className="text-yellow-500">Favorited</span>
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground">Not favorited</span>
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Date</label>
-                  <p className="text-base text-foreground mt-1">
-                    {formatDate(selectedMeal.date)}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Time</label>
-                  <p className="text-base text-foreground mt-1">
-                    {formatTime12Hour(selectedMeal.date)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Nutrition Details */}
+            <div className="p-5 space-y-4">
+              {/* Macros */}
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Nutritional Information</label>
-                <div className="mt-2 space-y-2">
-                  <div className="flex items-center justify-between p-3 bg-background/50 rounded-xl border border-border backdrop-blur-sm">
-                    <span className="font-medium">Calories</span>
-                    <span className="text-green-500 font-bold">{selectedMeal.calories} kcal</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-background/50 rounded-xl border border-border backdrop-blur-sm">
-                    <span className="font-medium">Protein</span>
-                    <span className="text-foreground font-bold">{Math.round(selectedMeal.protein)}g</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-background/50 rounded-xl border border-border backdrop-blur-sm">
-                    <span className="font-medium">Carbs</span>
-                    <span className="text-foreground font-bold">{Math.round(selectedMeal.carbs)}g</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-background/50 rounded-xl border border-border backdrop-blur-sm">
-                    <span className="font-medium">Fats</span>
-                    <span className="text-foreground font-bold">{Math.round(selectedMeal.fats)}g</span>
-                  </div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Macronutrients</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: "Protein", val: selectedMeal.protein,                       color: "#ef4444", bg: "#ef444415" },
+                    { label: "Carbs",   val: selectedMeal.carbs || selectedMeal.carbohydrates, color: "#06b6d4", bg: "#06b6d415" },
+                    { label: "Fats",    val: selectedMeal.fats  || selectedMeal.fat,          color: "#f59e0b", bg: "#f59e0b15" },
+                  ].map(m => (
+                    <div key={m.label} className="flex flex-col items-center p-3 rounded-2xl border"
+                      style={{ background: m.bg, borderColor: `${m.color}25` }}>
+                      <p className="text-xl font-black tabular-nums" style={{ color: m.color }}>{Math.round(m.val || 0)}g</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{m.label}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
 
+              {/* Micros */}
               {selectedMeal.micros && Object.keys(selectedMeal.micros).length > 0 && (
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Micronutrients</label>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Micronutrients</p>
+                  <div className="grid grid-cols-2 gap-1.5">
                     {Object.entries(selectedMeal.micros).map(([key, value]) => (
-                      <div key={key} className="flex items-center justify-between p-3 bg-background/50 rounded-xl border border-border backdrop-blur-sm">
-                        <span className="text-muted-foreground capitalize">{key}:</span>
-                        <span className="font-medium text-foreground">{value as string}</span>
+                      <div key={key} className="flex justify-between items-center py-1.5 px-2 rounded-xl hover:bg-muted/30 transition-colors">
+                        <span className="text-xs text-muted-foreground capitalize">{key}</span>
+                        <span className="text-xs font-semibold text-foreground tabular-nums">{String(value)}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

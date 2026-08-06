@@ -12,34 +12,34 @@ export interface PageTheme {
 
 export const pageThemes: Record<string, PageTheme> = {
   '/kitchen': {
-    primary: 'text-green-500',
-    primaryHover: 'hover:text-green-400',
-    primaryLight: 'bg-green-500/10',
-    primaryDark: 'bg-green-500/20',
-    shadow: 'shadow-green-500/20',
-    gradientFrom: 'from-green-400',
-    gradientTo: 'to-emerald-500',
-    borderColor: 'border-green-500/30'
+    primary: 'text-violet-500',
+    primaryHover: 'hover:text-violet-400',
+    primaryLight: 'bg-violet-500/10',
+    primaryDark: 'bg-violet-500/20',
+    shadow: 'shadow-violet-500/20',
+    gradientFrom: 'from-violet-400',
+    gradientTo: 'to-purple-500',
+    borderColor: 'border-violet-500/30'
   },
   '/arena': {
-    primary: 'text-red-500',
-    primaryHover: 'hover:text-red-400',
-    primaryLight: 'bg-red-500/10',
-    primaryDark: 'bg-red-500/20',
-    shadow: 'shadow-red-500/20',
-    gradientFrom: 'from-red-400',
-    gradientTo: 'to-orange-500',
-    borderColor: 'border-red-500/30'
+    primary: 'text-violet-500',
+    primaryHover: 'hover:text-violet-400',
+    primaryLight: 'bg-violet-500/10',
+    primaryDark: 'bg-violet-500/20',
+    shadow: 'shadow-violet-500/20',
+    gradientFrom: 'from-violet-400',
+    gradientTo: 'to-purple-500',
+    borderColor: 'border-violet-500/30'
   },
   '/sanctuary': {
-    primary: 'text-sanctuary',
-    primaryHover: 'hover:text-sanctuary-light',
-    primaryLight: 'bg-sanctuary/10',
-    primaryDark: 'bg-sanctuary/20',
-    shadow: 'shadow-sanctuary/20',
-    gradientFrom: 'from-sanctuary-light',
-    gradientTo: 'to-sanctuary',
-    borderColor: 'border-sanctuary/30'
+    primary: 'text-[#7F22FE]',
+    primaryHover: 'hover:text-[#7F22FE]',
+    primaryLight: 'bg-[#7F22FE]/10',
+    primaryDark: 'bg-[#7F22FE]/20',
+    shadow: 'shadow-[#7F22FE]/20',
+    gradientFrom: 'from-[#7F22FE]',
+    gradientTo: 'to-[#7F22FE]',
+    borderColor: 'border-[#7F22FE]/30'
   },
   '/ai-coach': {
     primary: 'text-purple-500',
@@ -52,24 +52,34 @@ export const pageThemes: Record<string, PageTheme> = {
     borderColor: 'border-purple-500/30'
   },
   '/world-map': {
-    primary: 'text-[#2B7FFF]',
-    primaryHover: 'hover:text-[#4A90FF]',
-    primaryLight: 'bg-[#2B7FFF]/10',
-    primaryDark: 'bg-[#2B7FFF]/20',
-    shadow: 'shadow-[#2B7FFF]/20',
-    gradientFrom: 'from-[#2B7FFF]',
-    gradientTo: 'to-[#4A90FF]',
-    borderColor: 'border-[#2B7FFF]/30'
+    primary: 'text-violet-500',
+    primaryHover: 'hover:text-violet-400',
+    primaryLight: 'bg-violet-500/10',
+    primaryDark: 'bg-violet-500/20',
+    shadow: 'shadow-violet-500/20',
+    gradientFrom: 'from-violet-400',
+    gradientTo: 'to-purple-500',
+    borderColor: 'border-violet-500/30'
   },
   '/guilds': {
-    primary: 'text-teal-500',
-    primaryHover: 'hover:text-teal-400',
-    primaryLight: 'bg-teal-500/10',
-    primaryDark: 'bg-teal-500/20',
-    shadow: 'shadow-teal-500/20',
-    gradientFrom: 'from-teal-400',
-    gradientTo: 'to-teal-600',
-    borderColor: 'border-teal-500/30'
+    primary: 'text-violet-500',
+    primaryHover: 'hover:text-violet-400',
+    primaryLight: 'bg-violet-500/10',
+    primaryDark: 'bg-violet-500/20',
+    shadow: 'shadow-violet-500/20',
+    gradientFrom: 'from-violet-400',
+    gradientTo: 'to-purple-500',
+    borderColor: 'border-violet-500/30'
+  },
+  '/settings': {
+    primary: 'text-[#7F22FE]',
+    primaryHover: 'hover:text-[#7F22FE]',
+    primaryLight: 'bg-[#7F22FE]/10',
+    primaryDark: 'bg-[#7F22FE]/20',
+    shadow: 'shadow-[#7F22FE]/20',
+    gradientFrom: 'from-[#7F22FE]',
+    gradientTo: 'to-[#7F22FE]',
+    borderColor: 'border-[#7F22FE]/30'
   },
   // Default theme for dashboard, settings, etc.
   'default': {
@@ -91,46 +101,55 @@ export function getPageTheme(pathname: string): PageTheme {
 export function getThemeClasses(pathname: string) {
   const theme = getPageTheme(pathname)
   
-  // Special handling for sanctuary page with custom color
-  if (pathname === '/sanctuary') {
+  // Special handling for settings and sanctuary pages with custom color #7F22FE
+  if (pathname === '/settings' || pathname === '/sanctuary') {
     return {
-      // Logo gradient classes with custom sanctuary color
+      // Logo gradient classes with custom settings/sanctuary color
       logoGradient: `bg-gradient-to-br`,
       logoGradientStyle: {
-        background: 'linear-gradient(to bottom right, #D9AAFF, #CD96FF)'
+        background: 'linear-gradient(to bottom right, #7F22FE, #a855f7)'
       },
       logoShadow: `shadow-lg`,
       logoShadowStyle: {
-        boxShadow: '0 10px 15px -3px rgba(205, 150, 255, 0.2), 0 4px 6px -4px rgba(205, 150, 255, 0.1)'
+        boxShadow: '0 10px 15px -3px rgba(127, 34, 254, 0.2), 0 4px 6px -4px rgba(127, 34, 254, 0.1)'
       },
       
-      // Text gradient classes with custom sanctuary color
+      // Text gradient classes with custom settings/sanctuary color
       textGradient: `bg-clip-text text-transparent`,
       textGradientStyle: {
-        background: 'linear-gradient(to right, #D9AAFF, #CD96FF)',
+        background: 'linear-gradient(to right, #7F22FE, #a855f7)',
         WebkitBackgroundClip: 'text',
         WebkitTextFillColor: 'transparent'
       },
       
       // Active item classes
-      activeItem: `${theme.primaryLight} ${theme.primary} border ${theme.borderColor}`,
+      activeItem: `bg-[#7F22FE]/10 text-[#7F22FE] border border-[#7F22FE]/30`,
       
-      // Hover classes with custom sanctuary hover color #9583FF
+      // Hover classes
       hoverItem: `text-muted-foreground hover:bg-accent`,
       hoverItemCustom: true,
-      hoverColor: '#9583FF',
+      hoverColor: '#7F22FE',
       
       // Button classes
       buttonGradient: `text-white`,
       buttonGradientStyle: {
-        background: 'linear-gradient(to right, #D9AAFF, #CD96FF)'
+        background: 'linear-gradient(to right, #7F22FE, #a855f7)'
       },
       
       // Shadow classes
-      shadow: theme.shadow,
+      shadow: 'shadow-[#7F22FE]/20',
       
       // Individual theme properties
-      theme
+      theme: {
+        primary: 'text-[#7F22FE]',
+        primaryHover: 'hover:text-[#7F22FE]',
+        primaryLight: 'bg-[#7F22FE]/10',
+        primaryDark: 'bg-[#7F22FE]/20',
+        shadow: 'shadow-[#7F22FE]/20',
+        gradientFrom: 'from-[#7F22FE]',
+        gradientTo: 'to-[#7F22FE]',
+        borderColor: 'border-[#7F22FE]/30'
+      }
     }
   }
   
