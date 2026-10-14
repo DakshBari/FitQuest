@@ -64,3 +64,9 @@ Thumbs.db
 .cache/
 .temp/
 .tmp/
+
+####################################
+# Project docs (local only)
+####################################
+ARCHITECTURE.md
+LEAFLET_INTEGRATION.md

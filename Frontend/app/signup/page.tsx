@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PublicRoute } from "@/components/auth/PublicRoute"
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton"
 import { useAuth } from "@/contexts/AuthContext"
 import { signup } from "@/services/authService"
 import { toast } from "@/components/ui/sonner"
@@ -145,7 +146,7 @@ export default function SignupPage() {
           <div className="mt-6 text-center">
               <p className="text-muted-foreground text-sm mb-4">Or sign up with</p>
               <div className="flex gap-4 justify-center">
-                <Button variant="outline" className="flex-1 border-border bg-card text-foreground hover:bg-accent hover:border-secondary/50">Google</Button>
+                <GoogleSignInButton className="flex-1 hover:border-secondary/50" label="Google" />
                 <Button variant="outline" className="flex-1 border-border bg-card text-foreground hover:bg-accent hover:border-secondary/50">Discord</Button>
               </div>
           </div>

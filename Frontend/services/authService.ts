@@ -14,6 +14,13 @@ export interface AuthResponse {
   };
 }
 
+export interface GoogleAuthPayload {
+  credential?: string;
+  accessToken?: string;
+  token?: string;
+  code?: string;
+}
+
 export const login = async (email: string, password: string): Promise<AuthResponse> => {
   const response = await fetch(`${API_URL}/api/auth/login`, {
     method: 'POST',
@@ -44,7 +51,41 @@ export const signup = async (username: string, email: string, password: string):
   return await response.json();
 };
 
-// NEW: Function to update Online Status
+// Google OAuth Login / Signup API call
+export const googleLogin = async (payload: GoogleAuthPayload): Promise<AuthResponse> => {
+  const response = await fetch(`${API_URL}/api/auth/google`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.message || 'Google authentication failed');
+  }
+
+  return await response.json();
+};
+
+// Fetch current user using token
+export const getCurrentUser = async (token: string): Promise<AuthResponse['user']> => {
+  const response = await fetch(`${API_URL}/api/auth/me`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.message || 'Failed to fetch user profile');
+  }
+
+  const data = await response.json();
+  return data.user;
+};
+
+// Function to update Online Status
 export const updateStatus = async (isOnline: boolean): Promise<void> => {
   try {
     const response = await fetch(`${API_URL}/api/users/status`, {

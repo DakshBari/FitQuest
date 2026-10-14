@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PublicRoute } from "@/components/auth/PublicRoute"
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton"
 import { useAuth } from "@/contexts/AuthContext"
-import { login as authServiceLogin } from "@/services/authService"
+import { login as authServiceLogin, getCurrentUser } from "@/services/authService"
 import { toast } from "@/components/ui/sonner"
 
 export default function LoginPage() {
@@ -19,14 +20,49 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
-  // NEW: Auto-redirect if user is already on login page but logged in
+  // Auto-redirect if user is already authenticated
   useEffect(() => {
     if (isAuthenticated) {
       console.log("User is already authenticated. Redirecting to dashboard...")
-      // Force hard redirect to ensure state is clean
       window.location.href = '/dashboard'
     }
   }, [isAuthenticated])
+
+  // Handle Google OAuth callback if redirected with query params
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get("token")
+    const googleSuccess = params.get("googleSuccess")
+    const error = params.get("error")
+
+    if (error) {
+      toast.error(error)
+      window.history.replaceState({}, document.title, window.location.pathname)
+      return
+    }
+
+    if (token && googleSuccess) {
+      setIsLoading(true)
+      toast.loading("Completing Google login...", { id: "oauth-callback" })
+
+      getCurrentUser(token)
+        .then((user) => {
+          authLogin(token, user)
+          toast.success("Welcome back to FitQuest!", { id: "oauth-callback" })
+          window.history.replaceState({}, document.title, window.location.pathname)
+          setTimeout(() => {
+            window.location.href = "/dashboard"
+          }, 300)
+        })
+        .catch((err) => {
+          console.error("Failed to restore Google session:", err)
+          toast.error("Google authentication failed to complete", { id: "oauth-callback" })
+          setIsLoading(false)
+        })
+    }
+  }, [authLogin])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,8 +81,7 @@ export default function LoginPage() {
       
       toast.success("Welcome back to FitQuest!")
       
-      // 5. Force Redirect
-      // Using window.location to bypass any middleware/router conflicts
+      // Force Redirect
       setTimeout(() => {
         window.location.href = '/dashboard'
       }, 500)
@@ -135,7 +170,7 @@ export default function LoginPage() {
           <div className="mt-6 text-center">
              <p className="text-muted-foreground text-sm mb-4">Or continue with</p>
              <div className="flex gap-4 justify-center">
-               <Button variant="outline" className="flex-1 border-border bg-card text-foreground hover:bg-accent hover:border-primary/50">Google</Button>
+               <GoogleSignInButton className="flex-1" label="Google" />
                <Button variant="outline" className="flex-1 border-border bg-card text-foreground hover:bg-accent hover:border-primary/50">Discord</Button>
              </div>
           </div>

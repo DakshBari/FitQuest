@@ -4,7 +4,8 @@ import bcrypt from 'bcryptjs';
 export interface IUser extends Document {
   username: string;
   email: string;
-  password: string;
+  password?: string;
+  googleId?: string;
   avatar?: string;
   level: number;
   xp: number;
@@ -67,9 +68,16 @@ const UserSchema = new Schema<IUser>(
     },
     password: {
       type: String,
-      required: [true, 'Please provide a password'],
+      required: function (this: any) {
+        return !this.googleId;
+      },
       minlength: [6, 'Password must be at least 6 characters'],
       select: false
+    },
+    googleId: {
+      type: String,
+      sparse: true,
+      unique: true
     },
     avatar: {
       type: String,
@@ -152,7 +160,7 @@ const UserSchema = new Schema<IUser>(
 
 // Hash password before saving
 UserSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+  if (!this.password || !this.isModified('password')) return next();
   
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
@@ -161,6 +169,7 @@ UserSchema.pre('save', async function (next) {
 
 // Compare password method
 UserSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
+  if (!this.password) return false;
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
