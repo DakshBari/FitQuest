@@ -25,6 +25,8 @@ console.log('Environment check:');
 console.log('- PORT:', process.env.PORT);
 console.log('- GEMINI_API_KEY exists:', !!process.env.GEMINI_API_KEY);
 console.log('- GEMINI_API_KEY value:', process.env.GEMINI_API_KEY?.substring(0, 10) + '...');
+console.log('- MONGODB_URI exists:', !!process.env.MONGODB_URI);
+console.log('- MONGODB_URI target:', process.env.MONGODB_URI ? (process.env.MONGODB_URI.startsWith('mongodb+srv://') ? 'MongoDB Atlas (Cloud)' : 'Custom MongoDB URI') : 'DEFAULT LOCALHOST (mongodb://localhost:27017/fitquest)');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -63,17 +65,19 @@ app.use('/api/world-map', worldMapRoutes);
 // Error handling middleware (must be last)
 app.use(errorHandler);
 
+// Start server immediately so Render detects the port
+const server = app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
+
 // Connect to MongoDB
+console.log(`⏳ Connecting to MongoDB at ${MONGODB_URI.startsWith('mongodb+srv://') ? 'MongoDB Atlas (Cloud)...' : MONGODB_URI}...`);
 mongoose.connect(MONGODB_URI)
   .then(() => {
     console.log('✅ Connected to MongoDB');
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-    });
   })
   .catch((error) => {
-    console.error('❌ MongoDB connection error:', error);
-    process.exit(1);
+    console.error('❌ MongoDB connection error:', error.message || error);
   });
 
 export default app;
