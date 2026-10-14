@@ -62,11 +62,12 @@ class MealAIService {
       this.isGeminiAvailable = false;
     } else {
       try {
+        const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
         this.genAI = new GoogleGenerativeAI(apiKey);
-        this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-        this.visionModel = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        this.model = this.genAI.getGenerativeModel({ model: modelName });
+        this.visionModel = this.genAI.getGenerativeModel({ model: modelName });
         this.isGeminiAvailable = true;
-        console.log('✅ Meal AI (Gemini) initialized successfully with gemini-2.5-flash');
+        console.log(`✅ Meal AI (Gemini) initialized successfully with ${modelName}`);
       } catch (error) {
         console.error('❌ Failed to initialize Meal AI (Gemini):', error);
         this.genAI = null;
