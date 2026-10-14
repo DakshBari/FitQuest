@@ -16,7 +16,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           {children}
         </AuthProvider>
       </GoogleOAuthProvider>
-      <Analytics />
+      {process.env.NEXT_PUBLIC_VERCEL_ENV && <Analytics />}
     </ThemeProvider>
   )
 }

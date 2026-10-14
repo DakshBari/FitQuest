@@ -34,10 +34,28 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/fitque
 
 // Middleware
 app.use(helmet({
-  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+  crossOriginOpenerPolicy: false,
+  crossOriginResourcePolicy: false
 }));
+
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://fitquest-tj30.onrender.com',
+  process.env.FRONTEND_URL
+].filter(Boolean) as string[];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.onrender.com') ||
+      origin.startsWith('http://localhost:')
+    ) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS blocked origin: ${origin}`));
+  },
   credentials: true
 }));
 app.use(compression());
