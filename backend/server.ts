@@ -45,6 +45,11 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Root check
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', message: 'FitQuest API is running', health: '/health' });
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
