@@ -43,10 +43,10 @@ interface MealSuggestion {
 }
 
 class MealAIService {
-  private genAI: GoogleGenerativeAI | null;
-  private model: any;
-  private visionModel: any;
-  private isGeminiAvailable: boolean;
+  public genAI: GoogleGenerativeAI | null;
+  public model: any;
+  public visionModel: any;
+  public isGeminiAvailable: boolean;
 
   constructor() {
     const apiKey = process.env.GEMINI_API_KEY;

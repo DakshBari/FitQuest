@@ -30,9 +30,9 @@ interface Recommendation {
 }
 
 class AICoachService {
-  private genAI: GoogleGenerativeAI | null;
-  private model: any;
-  private isGeminiAvailable: boolean;
+  public genAI: GoogleGenerativeAI | null;
+  public model: any;
+  public isGeminiAvailable: boolean;
 
   constructor() {
     const apiKey = process.env.GEMINI_API_KEY;
