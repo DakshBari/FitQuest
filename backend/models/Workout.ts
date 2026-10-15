@@ -14,6 +14,8 @@ export interface IWorkout extends Document {
   weightType: 'dumbbell' | 'barbell' | 'bodyweight' | 'machine' | 'cable' | 'kettlebell' | 'resistance_band';
   sets: IExerciseSet[];
   rpe: number;
+  duration?: number;
+  type?: string;
   restTime?: string;
   notes?: string;
   tempo?: string;
@@ -70,6 +72,13 @@ const WorkoutSchema = new Schema<IWorkout>(
       required: true,
       min: 1,
       max: 10
+    },
+    duration: {
+      type: Number,
+      default: 0
+    },
+    type: {
+      type: String
     },
     restTime: {
       type: String,

@@ -92,8 +92,8 @@ class MealAIService {
       let context = `User Profile:
 - Weight: ${user?.profile?.weight || 'Not specified'}kg
 - Height: ${user?.profile?.height || 'Not specified'}cm
-- Dietary Preferences: ${user?.preferences?.dietaryRestrictions?.join(', ') || 'None'}
-- Allergies: ${user?.preferences?.allergies?.join(', ') || 'None'}
+- Dietary Preferences: ${(user as any)?.preferences?.dietaryRestrictions?.join(', ') || user?.profile?.foodPreference || 'None'}
+- Allergies: ${(user as any)?.preferences?.allergies?.join(', ') || 'None'}
 
 Recent Meals (Last 10):`;
 

@@ -119,21 +119,21 @@ router.get('/friends', async (req: AuthRequest, res, next) => {
     const now = Date.now();
 
     const friends = friendships.map(friendship => {
-      const friend = friendship.requester._id.toString() === req.user._id.toString()
+      const friend: any = (friendship.requester as any)._id?.toString() === req.user._id.toString()
         ? friendship.recipient
         : friendship.requester;
 
-      const lastSeen = friend.lastSeen ? new Date(friend.lastSeen).getTime() : 0;
-      const isOnline = friend.isOnline && (now - lastSeen < ONLINE_THRESHOLD_MS);
+      const lastSeen = friend?.lastSeen ? new Date(friend.lastSeen).getTime() : 0;
+      const isOnline = Boolean(friend?.isOnline && (now - lastSeen < ONLINE_THRESHOLD_MS));
 
       return {
-        id: friend._id,
-        name: friend.username,
-        avatar: friend.avatar || friend.username.substring(0, 2).toUpperCase(),
-        level: friend.level,
-        xp: friend.xp,
+        id: friend?._id,
+        name: friend?.username,
+        avatar: friend?.avatar || friend?.username?.substring(0, 2).toUpperCase(),
+        level: friend?.level,
+        xp: friend?.xp,
         online: isOnline,
-        lastSeen: friend.lastSeen
+        lastSeen: friend?.lastSeen
       };
     });
 
@@ -213,17 +213,20 @@ router.get('/friends/requests', async (req: AuthRequest, res, next) => {
     .populate('requester', 'username avatar level xp isOnline')
     .sort({ createdAt: -1 });
 
-    const formattedRequests = requests.map(request => ({
-      id: request._id,
-      user: {
-        id: request.requester._id,
-        name: request.requester.username,
-        avatar: request.requester.avatar || request.requester.username.substring(0, 2).toUpperCase(),
-        level: request.requester.level,
-        online: request.requester.isOnline
-      },
-      createdAt: request.createdAt
-    }));
+    const formattedRequests = requests.map(request => {
+      const requester: any = request.requester;
+      return {
+        id: request._id,
+        user: {
+          id: requester?._id,
+          name: requester?.username,
+          avatar: requester?.avatar || requester?.username?.substring(0, 2).toUpperCase(),
+          level: requester?.level,
+          online: requester?.isOnline
+        },
+        createdAt: request.createdAt
+      };
+    });
 
     res.json({
       status: 'success',

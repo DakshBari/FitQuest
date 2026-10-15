@@ -1,5 +1,5 @@
 import express from 'express'
-import { authenticateToken } from '../middleware/auth'
+import { authenticateToken, AuthRequest } from '../middleware/auth'
 import Territory from '../models/Territory'
 import Activity from '../models/Activity'
 import User from '../models/User'
@@ -7,7 +7,7 @@ import User from '../models/User'
 const router = express.Router()
 
 // Get user's captured areas
-router.get('/captured-areas', authenticateToken, async (req, res) => {
+router.get('/captured-areas', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?._id
     if (!userId) {
@@ -38,7 +38,7 @@ router.get('/captured-areas', authenticateToken, async (req, res) => {
 })
 
 // Save captured area
-router.post('/captured-areas', authenticateToken, async (req, res) => {
+router.post('/captured-areas', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?._id
     if (!userId) {
@@ -65,7 +65,7 @@ router.post('/captured-areas', authenticateToken, async (req, res) => {
 })
 
 // Get user's session history
-router.get('/sessions', authenticateToken, async (req, res) => {
+router.get('/sessions', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?._id
     if (!userId) {
@@ -101,7 +101,7 @@ router.get('/sessions', authenticateToken, async (req, res) => {
 })
 
 // Get a friend's session history (read-only, friendship required)
-router.get('/friend/:friendId/sessions', authenticateToken, async (req, res) => {
+router.get('/friend/:friendId/sessions', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId   = req.user?._id
     const { friendId } = req.params
@@ -156,7 +156,7 @@ router.get('/friend/:friendId/sessions', authenticateToken, async (req, res) => 
 })
 
 // Start new session
-router.post('/sessions', authenticateToken, async (req, res) => {
+router.post('/sessions', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?._id
     if (!userId) {
@@ -201,7 +201,7 @@ router.post('/sessions', authenticateToken, async (req, res) => {
 })
 
 // Update/complete session
-router.put('/sessions/:sessionId', authenticateToken, async (req, res) => {
+router.put('/sessions/:sessionId', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?._id
     const { sessionId } = req.params
@@ -245,7 +245,7 @@ router.put('/sessions/:sessionId', authenticateToken, async (req, res) => {
 })
 
 // Get session statistics
-router.get('/stats', authenticateToken, async (req, res) => {
+router.get('/stats', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?._id
     if (!userId) {

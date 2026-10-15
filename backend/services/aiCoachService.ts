@@ -79,9 +79,9 @@ class AICoachService {
         .select('name calories protein carbs fat createdAt');
 
       let context = `User Profile:
-- Fitness Level: ${user?.profile?.fitnessLevel || 'Beginner'}
-- Goals: ${user?.profile?.goals?.join(', ') || 'General fitness'}
-- Age: ${user?.profile?.age || 'Not specified'}
+- Fitness Level: ${(user?.profile as any)?.fitnessLevel || 'Beginner'}
+- Goals: ${user?.profile?.goal || (user?.profile as any)?.goals?.join?.(', ') || 'General fitness'}
+- Age: ${(user?.profile as any)?.age || 'Not specified'}
 - Weight: ${user?.profile?.weight || 'Not specified'}kg
 - Height: ${user?.profile?.height || 'Not specified'}cm
 
@@ -89,8 +89,8 @@ Recent Activity:`;
 
       if (recentWorkouts.length > 0) {
         context += '\nRecent Workouts:\n';
-        recentWorkouts.forEach((workout, index) => {
-          context += `${index + 1}. ${workout.type} - ${workout.duration}min (${new Date(workout.createdAt).toLocaleDateString()})\n`;
+        recentWorkouts.forEach((workout: any, index) => {
+          context += `${index + 1}. ${workout.type || workout.exercise || 'Workout'} - ${workout.duration || 0}min (${new Date(workout.createdAt).toLocaleDateString()})\n`;
         });
       }
 
