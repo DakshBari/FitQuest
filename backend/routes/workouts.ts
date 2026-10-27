@@ -179,8 +179,37 @@ RECOMMENDATIONS:
 WORKOUTS:
 [Workout Name]|[Description]|[Muscle Group]|[Exercise1,Exercise2,Exercise3]`;
 
-      const aiResponse = await mealAIService.model.generateContent(prompt);
-      suggestions = parseWorkoutSuggestions(aiResponse.response.text());
+      if (mealAIService.isGeminiAvailable && mealAIService.model) {
+        try {
+          const aiResponse = await mealAIService.model.generateContent(prompt);
+          suggestions = parseWorkoutSuggestions(aiResponse.response.text());
+        } catch (geminiError) {
+          console.error('Gemini error for today workout insights, using fallback:', geminiError);
+          suggestions = {
+            summary: `Today is ${dayOfWeek}. You've logged ${todayWorkouts.length} exercise(s) with ${totalSets} total sets and a volume of ${Math.round(totalVolume)}kg. ${todayWorkouts.length === 0 ? 'No workouts logged yet — start training to track your progress!' : 'Keep going, you are making great progress!'} `,
+            recommendations: [
+              `Focus on your ${workoutSplit} split for today.`,
+              'Warm up for 5-10 minutes with dynamic stretching before your main lifts.',
+              'Aim for an RPE of 7-8 on your working sets for optimal stimulus.',
+              'Stay hydrated and track every set to maximize progress insights.'
+            ],
+            workoutSuggestions: [],
+            stats: {}
+          };
+        }
+      } else {
+        suggestions = {
+          summary: `Today is ${dayOfWeek}. You've logged ${todayWorkouts.length} exercise(s) with ${totalSets} total sets. Focus on your ${workoutSplit} split and train with intent!`,
+          recommendations: [
+            `Follow your ${workoutSplit} split for today.`,
+            'Warm up properly before heavy compound movements.',
+            'Track your RPE to monitor intensity and avoid overtraining.',
+            'Rest 2-3 minutes between heavy compound sets.'
+          ],
+          workoutSuggestions: [],
+          stats: {}
+        };
+      }
 
     } else if (type === 'weekly') {
       const endDate = new Date();
@@ -251,8 +280,48 @@ AVG_DURATION: ${avgDuration}min
 FREQUENCY: ${workouts.length}
 CONSISTENCY: ${Math.round((workouts.length / 7) * 100)}`;
 
-      const aiResponse = await mealAIService.model.generateContent(prompt);
-      suggestions = parseWorkoutSuggestions(aiResponse.response.text());
+      const weeklyStats = {
+        totalworkouts: workouts.length,
+        avgduration: avgDuration,
+        frequency: workouts.length,
+        consistency: Math.round((workouts.length / 7) * 100)
+      };
+
+      if (mealAIService.isGeminiAvailable && mealAIService.model) {
+        try {
+          const aiResponse = await mealAIService.model.generateContent(prompt);
+          suggestions = parseWorkoutSuggestions(aiResponse.response.text());
+          // Ensure stats are always populated
+          if (!suggestions.stats || Object.keys(suggestions.stats).length === 0) {
+            suggestions.stats = weeklyStats;
+          }
+        } catch (geminiError) {
+          console.error('Gemini error for weekly workout insights, using fallback:', geminiError);
+          suggestions = {
+            summary: `Over the last 7 days you logged ${workouts.length} workout(s) with an average RPE of ${avgRPE}/10. ${workouts.length < 3 ? 'Try to aim for at least 3-4 training sessions per week for consistent progress.' : 'Great training frequency! Focus on progressive overload next week.'}`,
+            recommendations: [
+              workouts.length < 3 ? 'Increase training frequency to at least 3 days per week.' : 'Maintain your consistent training frequency.',
+              'Ensure each muscle group is trained at least once per week.',
+              'Track total volume per session to ensure progressive overload.',
+              'Include at least one dedicated recovery or mobility day.'
+            ],
+            workoutSuggestions: [],
+            stats: weeklyStats
+          };
+        }
+      } else {
+        suggestions = {
+          summary: `Over the last 7 days you logged ${workouts.length} workout(s). ${workouts.length < 3 ? 'Aim for 3-4 sessions per week to build momentum.' : 'Solid training week! Keep up the consistency.'}`,
+          recommendations: [
+            'Track every session to monitor volume over time.',
+            'Balance pushing, pulling, and leg movements throughout the week.',
+            'Progressive overload is key — add small weight increments each week.',
+            'Prioritise sleep and nutrition to maximise recovery between sessions.'
+          ],
+          workoutSuggestions: [],
+          stats: weeklyStats
+        };
+      }
 
     } else if (type === 'overall') {
       const endDate = new Date();
@@ -329,8 +398,60 @@ AVG_DURATION: ${avgDuration}min
 FREQUENCY: ${(workouts.length / 4).toFixed(1)}
 CONSISTENCY: ${Math.round((daysWithWorkouts / 30) * 100)}`;
 
-      const aiResponse = await mealAIService.model.generateContent(prompt);
-      suggestions = parseWorkoutSuggestions(aiResponse.response.text());
+      const overallStats = {
+        totalworkouts: workouts.length,
+        avgduration: avgDuration,
+        frequency: parseFloat((workouts.length / 4).toFixed(1)),
+        consistency: Math.round((daysWithWorkouts / 30) * 100)
+      };
+
+      if (mealAIService.isGeminiAvailable && mealAIService.model) {
+        try {
+          const aiResponse = await mealAIService.model.generateContent(prompt);
+          suggestions = parseWorkoutSuggestions(aiResponse.response.text());
+          if (!suggestions.stats || Object.keys(suggestions.stats).length === 0) {
+            suggestions.stats = overallStats;
+          }
+        } catch (geminiError) {
+          console.error('Gemini error for overall workout insights, using fallback:', geminiError);
+          suggestions = {
+            summary: `Over the last 30 days you completed ${workouts.length} workout(s) across ${daysWithWorkouts} training days — a consistency rate of ${Math.round((daysWithWorkouts / 30) * 100)}%. ${workouts.length < 8 ? 'Building the training habit is the first step — aim for 3-4 sessions per week going forward.' : 'You are building a solid training base. Focus on progressive overload and recovery to keep improving.'}`,
+            recommendations: [
+              'Set a target of 3-5 training sessions per week for sustainable progress.',
+              'Review your muscle group distribution and ensure no major groups are neglected.',
+              'Add progressive overload by increasing weight or reps each week.',
+              'Deload every 4-6 weeks to allow full recovery and avoid burnout.',
+              'Combine strength training with adequate nutrition and sleep for best results.'
+            ],
+            workoutSuggestions: [],
+            stats: overallStats
+          };
+        }
+      } else {
+        suggestions = {
+          summary: `Over the last 30 days you completed ${workouts.length} workout(s) with a consistency of ${Math.round((daysWithWorkouts / 30) * 100)}%. ${workouts.length < 8 ? 'Focus on building the training habit first.' : 'Great long-term consistency! Keep progressive overload as your north star.'}`,
+          recommendations: [
+            'Aim for 3-5 sessions per week for continued progress.',
+            'Log every session to track long-term volume trends.',
+            'Deload every 4-6 weeks to prevent overtraining.',
+            'Ensure balanced muscle group training across your split.',
+            'Combine training with good nutrition and sleep for maximum gains.'
+          ],
+          workoutSuggestions: [],
+          stats: overallStats
+        };
+      }
+    } else {
+      suggestions = {
+        summary: 'Start logging your workouts to receive personalized training insights from The Oracle.',
+        recommendations: [
+          'Log your first workout to get started.',
+          'Track exercises, sets, reps, and weight for accurate analysis.',
+          'Consistency is the key to long-term progress.'
+        ],
+        workoutSuggestions: [],
+        stats: {}
+      };
     }
 
     res.json({
