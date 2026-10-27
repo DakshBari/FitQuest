@@ -76,7 +76,7 @@ export function Header() {
             {pathname === '/kitchen' && 'The Kitchen'}
             {pathname === '/arena' && 'The Arena'}
             {pathname === '/sanctuary' && 'The Sanctuary'}
-            {pathname === '/ai-coach' && 'The Oracle'}
+            {pathname === '/ai-coach' && 'FitQuest AI'}
             {pathname === '/dashboard' && 'Dashboard'}
             {pathname === '/world-map' && 'World Map'}
             {pathname === '/guilds' && 'Guilds'}

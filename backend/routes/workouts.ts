@@ -443,7 +443,7 @@ CONSISTENCY: ${Math.round((daysWithWorkouts / 30) * 100)}`;
       }
     } else {
       suggestions = {
-        summary: 'Start logging your workouts to receive personalized training insights from The Oracle.',
+        summary: 'Start logging your workouts to receive personalized training insights from FitQuest AI.',
         recommendations: [
           'Log your first workout to get started.',
           'Track exercises, sets, reps, and weight for accurate analysis.',

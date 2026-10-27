@@ -60,7 +60,7 @@ export function AISuggestions({ onBack, profile }: AISuggestionsProps) {
             <Loader2 className="w-6 h-6 text-violet-400 absolute -bottom-1 -right-1 animate-spin" />
           </div>
           <p className="text-lg font-semibold text-foreground mt-6">Analyzing your training...</p>
-          <p className="text-sm text-muted-foreground mt-2">The Oracle is preparing personalized insights</p>
+          <p className="text-sm text-muted-foreground mt-2">FitQuest AI is preparing personalized insights</p>
         </div>
       )
     }
@@ -225,7 +225,7 @@ export function AISuggestions({ onBack, profile }: AISuggestionsProps) {
             </div>
             <div>
               <h2 className="text-3xl font-bold text-foreground font-inter tracking-tight">Training Insights</h2>
-              <p className="text-base text-muted-foreground mt-1">AI-powered workout guidance from The Oracle</p>
+              <p className="text-base text-muted-foreground mt-1">AI-powered workout guidance from FitQuest AI</p>
             </div>
           </div>
 

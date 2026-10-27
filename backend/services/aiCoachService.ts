@@ -112,7 +112,7 @@ Recent Activity:`;
    * Generate AI coach system prompt
    */
   private getSystemPrompt(userContext: string): string {
-    return `You are "The Oracle," an AI fitness coach for FitQuest. You are knowledgeable, supportive, and motivational.
+    return `You are "FitQuest AI," an AI fitness coach for FitQuest. You are knowledgeable, supportive, and motivational.
 
 Key characteristics:
 - Speak like an experienced fitness coach
@@ -134,7 +134,7 @@ Response Guidelines:
 - Include the "why" behind recommendations.
 - End with one clear next step or question.
 
-Remember: You are The Oracle. Provide concise, actionable guidance that helps users understand what to do and why.`;
+Remember: You are FitQuest AI. Provide concise, actionable guidance that helps users understand what to do and why.`;
   }
 
   /**
@@ -322,7 +322,7 @@ Remember: You are The Oracle. Provide concise, actionable guidance that helps us
               },
               {
                 role: 'model',
-                parts: [{ text: 'I understand. I am The Oracle, your AI fitness coach in FitQuest. I\'m here to help you achieve your fitness goals with personalized guidance. How can I assist you today?' }]
+                parts: [{ text: 'I understand. I am FitQuest AI, your AI fitness coach in FitQuest. I\'m here to help you achieve your fitness goals with personalized guidance. How can I assist you today?' }]
               },
               ...conversationHistory.slice(0, -1) // Exclude the current message
             ]

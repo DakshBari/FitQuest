@@ -278,7 +278,7 @@ export default function AICoachPage() {
   const [message,          setMessage]          = useState("")
   const [currentMessages,  setCurrentMessages]  = useState<Message[]>([{
     role: "ai",
-    content: "Hello! I'm your AI Coach. Ask me anything about training, nutrition, recovery, or form — I'm here to help you perform at your best.",
+    content: "Hello! I'm FitQuest AI, your personal fitness coach. Ask me anything about training, nutrition, recovery, or form — I'm here to help you perform at your best.",
     timestamp: new Date(),
   }])
   const [chatSessions,     setChatSessions]     = useState<ChatSession[]>([])
@@ -354,7 +354,7 @@ export default function AICoachPage() {
     setCurrentSessionId(null); setTypingIdx(null); setDisplayedContent("")
     setCurrentMessages([{
       role: "ai",
-      content: "Hello! I'm your AI Coach. Ask me anything about training, nutrition, recovery, or form — I'm here to help you perform at your best.",
+      content: "Hello! I'm FitQuest AI, your personal fitness coach. Ask me anything about training, nutrition, recovery, or form — I'm here to help you perform at your best.",
       timestamp: new Date(),
     }])
   }
@@ -461,7 +461,7 @@ export default function AICoachPage() {
                 )} />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-foreground">The Oracle</h2>
+                <h2 className="text-sm font-bold text-foreground">FitQuest AI</h2>
                 <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
                   <span className={cn("w-1.5 h-1.5 rounded-full", aiStatus === "online" ? "bg-emerald-400" : "bg-red-400")} />
                   {aiStatus === "online" ? "Online · AI Fitness Coach" : "Offline"}
