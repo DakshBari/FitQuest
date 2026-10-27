@@ -434,6 +434,46 @@ export const getDailyEntries = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// Helper to build fallback suggestions
+function buildFallbackSuggestions(type: string, user: any, totals: any, goals: any): any {
+  if (type === 'today') {
+    const remaining = goals.calories - (totals.calories || 0);
+    return {
+      summary: `Today you've consumed ${totals.calories || 0} of your ${goals.calories} calorie goal. ${remaining > 0 ? `You have ${remaining} calories remaining.` : 'You have reached your calorie goal for today!'} Keep tracking to stay on top of your nutrition.`,
+      recommendations: [
+        `Aim for ${Math.max(0, goals.protein - (totals.protein || 0))}g more protein today from sources like chicken, eggs, or legumes.`,
+        'Drink plenty of water throughout the day — at least 8 glasses.',
+        `You still need ${Math.max(0, goals.carbs - (totals.carbs || 0))}g of carbs — consider oats, rice, or sweet potato.`,
+        'Try to space meals 3-4 hours apart to keep energy levels stable.'
+      ],
+      mealSuggestions: []
+    };
+  } else if (type === 'weekly') {
+    return {
+      summary: 'Your weekly nutrition data has been recorded. Consistency is key — aim to log meals daily and focus on hitting your protein and calorie targets most days.',
+      recommendations: [
+        'Try to log at least 3 meals per day for accurate tracking.',
+        'Focus on reaching your daily protein target consistently.',
+        'Include a variety of vegetables and whole foods each day.',
+        'Prep meals in advance to make healthy choices easier during busy days.'
+      ],
+      mealSuggestions: []
+    };
+  } else {
+    return {
+      summary: 'Your overall nutrition journey is being tracked. Use your logged meals as a foundation to build healthier habits. Consistency over time leads to lasting results.',
+      recommendations: [
+        'Build a habit of logging every meal — even small snacks matter.',
+        'Prioritize whole foods: lean proteins, complex carbs, and healthy fats.',
+        'Review your weekly averages and adjust your goals as you progress.',
+        'Stay hydrated and ensure adequate sleep to support your fitness goals.',
+        'Consider consulting a nutritionist to fine-tune your macro targets.'
+      ],
+      mealSuggestions: []
+    };
+  }
+}
+
 // @desc    Get AI-powered nutrition suggestions
 export const getAISuggestions = async (req: AuthRequest, res: Response) => {
   try {
@@ -509,9 +549,25 @@ MEALS:
 [Meal Name]|[Description]|[Calories]|[Protein]|[Carbs]|[Fats]
 [Meal Name]|[Description]|[Calories]|[Protein]|[Carbs]|[Fats]`;
 
-      const aiResponse = await mealAIService.model.generateContent(prompt);
-      const responseText = aiResponse.response.text();
-      suggestions = parseAISuggestions(responseText);
+      if (mealAIService.isGeminiAvailable && mealAIService.model) {
+        try {
+          const aiResponse = await mealAIService.model.generateContent(prompt);
+          const responseText = aiResponse.response.text();
+          suggestions = parseAISuggestions(responseText);
+        } catch (geminiError) {
+          console.error('Gemini API error for today insights, using fallback:', geminiError);
+          suggestions = buildFallbackSuggestions('today', user,
+            { calories: totalCalories, protein: totalProtein, carbs: totalCarbs, fats: totalFats },
+            goals
+          );
+        }
+      } else {
+        console.warn('Gemini not available, using fallback for today insights');
+        suggestions = buildFallbackSuggestions('today', user,
+          { calories: totalCalories, protein: totalProtein, carbs: totalCarbs, fats: totalFats },
+          goals
+        );
+      }
 
     } else if (type === 'weekly') {
       // Get last 7 days of meals
@@ -564,9 +620,19 @@ RECOMMENDATIONS:
 - [recommendation 3]
 - [recommendation 4]`;
 
-      const aiResponse = await mealAIService.model.generateContent(prompt);
-      const responseText = aiResponse.response.text();
-      suggestions = parseAISuggestions(responseText);
+      if (mealAIService.isGeminiAvailable && mealAIService.model) {
+        try {
+          const aiResponse = await mealAIService.model.generateContent(prompt);
+          const responseText = aiResponse.response.text();
+          suggestions = parseAISuggestions(responseText);
+        } catch (geminiError) {
+          console.error('Gemini API error for weekly insights, using fallback:', geminiError);
+          suggestions = buildFallbackSuggestions('weekly', user, {}, goals);
+        }
+      } else {
+        console.warn('Gemini not available, using fallback for weekly insights');
+        suggestions = buildFallbackSuggestions('weekly', user, {}, goals);
+      }
 
     } else if (type === 'overall') {
       // Get last 30 days of meals
@@ -621,9 +687,22 @@ RECOMMENDATIONS:
 - [recommendation 4]
 - [recommendation 5]`;
 
-      const aiResponse = await mealAIService.model.generateContent(prompt);
-      const responseText = aiResponse.response.text();
-      suggestions = parseAISuggestions(responseText);
+      if (mealAIService.isGeminiAvailable && mealAIService.model) {
+        try {
+          const aiResponse = await mealAIService.model.generateContent(prompt);
+          const responseText = aiResponse.response.text();
+          suggestions = parseAISuggestions(responseText);
+        } catch (geminiError) {
+          console.error('Gemini API error for overall insights, using fallback:', geminiError);
+          suggestions = buildFallbackSuggestions('overall', user, {}, goals);
+        }
+      } else {
+        console.warn('Gemini not available, using fallback for overall insights');
+        suggestions = buildFallbackSuggestions('overall', user, {}, goals);
+      }
+    } else {
+      // Unknown type — return a default structure
+      suggestions = buildFallbackSuggestions('overall', user, {}, { calories: 2000, protein: 150, carbs: 200, fats: 65 });
     }
 
     res.json({
