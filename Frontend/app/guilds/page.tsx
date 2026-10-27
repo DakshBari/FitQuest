@@ -10,7 +10,9 @@ import { FriendKitchenCard } from "@/components/guilds/FriendKitchenCard"
 import { FriendArenaCard } from "@/components/guilds/FriendArenaCard"
 import { FriendWorldMapCard } from "@/components/guilds/FriendWorldMapCard"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+import { getApiUrl } from "@/lib/config"
+
+const API_URL = getApiUrl()
 
 interface Friend {
   id: string

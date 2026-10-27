@@ -1,7 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext'
 import { useCallback } from 'react'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+import { getApiUrl } from '@/lib/config'
 
 export function useApi() {
   const { token, logout } = useAuth()
@@ -16,7 +15,8 @@ export function useApi() {
       headers['Authorization'] = `Bearer ${token}`
     }
 
-    const response = await fetch(`${API_URL}${url}`, {
+    const apiUrl = getApiUrl()
+    const response = await fetch(`${apiUrl}${url}`, {
       ...options,
       headers
     })

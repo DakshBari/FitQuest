@@ -28,7 +28,9 @@ import {
 import { updateStatus } from "@/services/authService"
 import { toast } from "@/components/ui/sonner"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+import { getApiUrl } from "@/lib/config"
+
+const API_URL = getApiUrl();
 
 interface Friend {
   id: string

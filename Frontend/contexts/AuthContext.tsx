@@ -22,15 +22,15 @@ interface AuthContextType {
   isAuthenticated: boolean
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+import { getApiUrl } from '@/lib/config'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 /** Fire-and-forget: survives page navigation / tab close */
 function beaconOffline() {
   try {
     const blob = new Blob([JSON.stringify({ isOnline: false })], { type: 'application/json' })
-    navigator.sendBeacon(`${API_URL}/api/users/status`, blob)
+    navigator.sendBeacon(`${getApiUrl()}/api/users/status`, blob)
   } catch {
     updateStatus(false)
   }

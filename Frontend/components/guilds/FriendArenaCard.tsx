@@ -4,7 +4,9 @@ import { useState, useEffect, useCallback } from "react"
 import { Swords, X, Dumbbell, Loader2, Zap, BarChart2, Target, Layers } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+import { getApiUrl } from "@/lib/config"
+
+const API_URL = getApiUrl()
 
 interface WorkoutSet {
   reps: number

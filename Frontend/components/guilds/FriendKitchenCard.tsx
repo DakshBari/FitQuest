@@ -4,7 +4,9 @@ import { useState, useEffect, useCallback } from "react"
 import { ChefHat, X, Utensils, Loader2, Flame, Beef, Wheat, Droplets } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+import { getApiUrl } from "@/lib/config"
+
+const API_URL = getApiUrl()
 
 interface FriendMeal {
   _id: string

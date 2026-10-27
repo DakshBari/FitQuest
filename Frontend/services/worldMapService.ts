@@ -1,4 +1,5 @@
-const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api`
+import { getApiUrl } from '@/lib/config';
+const API_BASE_URL = `${getApiUrl()}/api`
 
 export interface RunSession {
   id: string

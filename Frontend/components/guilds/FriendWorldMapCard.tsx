@@ -4,7 +4,9 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { Map, Loader2, Activity, Zap, X, Route, MapPin, Clock, Gauge, TrendingUp } from "lucide-react"
 import "leaflet/dist/leaflet.css"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+import { getApiUrl } from "@/lib/config"
+
+const API_URL = getApiUrl()
 
 interface FriendSession {
   id: string

@@ -1,4 +1,5 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+import { getApiUrl } from '@/lib/config';
+const API_URL = getApiUrl();
 
 export interface UserProfile {
   id: string;

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { X, Sparkles, Edit3, Loader2 } from "lucide-react"
 import { getCurrentTimeForInput, formatInputTimeToDisplay } from "@/lib/timeUtils"
+import { getApiUrl } from "@/lib/config"
 
 interface AddMealModalProps {
   isOpen: boolean
@@ -61,7 +62,7 @@ export function AddMealModal({ isOpen, onClose, onAdd }: AddMealModalProps) {
 
         setIsAnalyzing(true)
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/ai-coach/analyze-food`, {
+            const response = await fetch(`${getApiUrl()}/api/ai-coach/analyze-food`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

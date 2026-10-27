@@ -5,6 +5,7 @@ import { Send, Mic, MicOff, Volume2, VolumeX, MessageSquare, Clock, Trash2, Spar
 import { aiCoachService, type Message, type ChatSession } from "@/services/aiCoachService"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { getApiUrl } from "@/lib/config"
 
 // ─── Brand accent ──────────────────────────────────────────
 const PURPLE = "#8b5cf6"
@@ -335,7 +336,7 @@ export default function AICoachPage() {
 
   const checkStatus = async () => {
     try {
-      const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/health`)
+      const r = await fetch(`${getApiUrl()}/health`)
       setAiStatus(r.ok ? "online" : "offline")
     } catch { setAiStatus("offline") }
   }
