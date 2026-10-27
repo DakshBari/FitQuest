@@ -1,0 +1,25 @@
+name: Keep Render Services Awake
+
+on:
+  schedule:
+    # Runs every 14 minutes (Render free tier sleeps after 15 minutes of inactivity)
+    - cron: '*/14 * * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI for testing
+
+jobs:
+  keep-alive:
+    name: Ping Services
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Backend
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://fitquest-backend-zwvc.onrender.com/health)
+          echo "Backend /health returned HTTP $STATUS"
+          if [ "$STATUS" -ne 200 ]; then
+            echo "Warning: Backend responded with non-200 code ($STATUS)"
+          fi
+
+      - name: Ping Frontend
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://fitquest-tj30.onrender.com)
+          echo "Frontend returned HTTP $STATUS"
