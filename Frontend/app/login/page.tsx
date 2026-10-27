@@ -20,14 +20,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
-  // Auto-redirect if user is already authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      console.log("User is already authenticated. Redirecting to dashboard...")
-      window.location.href = '/dashboard'
-    }
-  }, [isAuthenticated])
-
   // Handle Google OAuth callback if redirected with query params
   useEffect(() => {
     if (typeof window === "undefined") return

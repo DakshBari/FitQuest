@@ -1,7 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { updateStatus } from '@/services/authService'
+import { updateStatus, getCurrentUser } from '@/services/authService'
 
 interface User {
   id: string
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     document.cookie = 'token=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;'
   }
 
-  // ── Init from localStorage ─────────────────────────────
+  // ── Init and validate session from backend ─────────────
   useEffect(() => {
     const storedToken = localStorage.getItem('token')
     const storedUserRaw = localStorage.getItem('user')
@@ -72,18 +72,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
+      // Optimistically restore session so UI doesn't flash
       setToken(storedToken)
       setUser(parsedUser)
-      updateStatus(true)   // mark online on app load
-      console.log('Session restored for:', parsedUser.username)
+
+      // Actively verify token with the backend /api/auth/me
+      getCurrentUser(storedToken)
+        .then((freshUser) => {
+          setToken(storedToken)
+          setUser(freshUser)
+          localStorage.setItem('user', JSON.stringify(freshUser))
+          updateStatus(true)
+          console.log('Session verified and active for:', freshUser.username)
+        })
+        .catch((err) => {
+          console.warn('Stored token is invalid/expired on backend — purging zombie session:', err.message)
+          purgeAuthStorage()
+          setToken(null)
+          setUser(null)
+        })
+        .finally(() => {
+          setIsLoading(false)
+        })
     } catch (e) {
       console.error('Error parsing stored user:', e)
       purgeAuthStorage()
       setToken(null)
       setUser(null)
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
   }, [])
 
   // ── Heartbeat: refresh lastSeen every 3 min ────────────

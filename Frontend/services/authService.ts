@@ -101,6 +101,16 @@ export const updateStatus = async (isOnline: boolean): Promise<void> => {
       body: JSON.stringify({ isOnline })
     });
 
+    if (response.status === 401) {
+      console.warn('Failed to update status: 401 — clearing expired session');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        document.cookie = 'token=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
+      }
+      return;
+    }
+
     if (!response.ok) {
       console.warn('Failed to update status:', response.status);
     }
