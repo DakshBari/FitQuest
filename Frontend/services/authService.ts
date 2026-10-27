@@ -88,11 +88,14 @@ export const getCurrentUser = async (token: string): Promise<AuthResponse['user'
 // Function to update Online Status
 export const updateStatus = async (isOnline: boolean): Promise<void> => {
   try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token || token === 'undefined' || token === 'null' || token.trim() === '') return;
+
     const response = await fetch(`${API_URL}/api/users/status`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({ isOnline })
     });

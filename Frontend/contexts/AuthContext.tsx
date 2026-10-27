@@ -41,14 +41,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  const purgeAuthStorage = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    document.cookie = 'token=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;'
+  }
+
   // ── Init from localStorage ─────────────────────────────
   useEffect(() => {
     const storedToken = localStorage.getItem('token')
     const storedUserRaw = localStorage.getItem('user')
 
-    if (!storedToken || !storedUserRaw) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
+    if (!storedToken || storedToken === 'undefined' || storedToken === 'null' || !storedUserRaw) {
+      purgeAuthStorage()
+      setToken(null)
+      setUser(null)
       setIsLoading(false)
       return
     }
@@ -58,8 +65,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (parsedUser.email === 'user@fitquest.com' || !parsedUser.id) {
         console.warn('Mock/invalid user detected — clearing storage')
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
+        purgeAuthStorage()
+        setToken(null)
+        setUser(null)
         setIsLoading(false)
         return
       }
@@ -70,8 +78,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Session restored for:', parsedUser.username)
     } catch (e) {
       console.error('Error parsing stored user:', e)
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
+      purgeAuthStorage()
+      setToken(null)
+      setUser(null)
     }
 
     setIsLoading(false)

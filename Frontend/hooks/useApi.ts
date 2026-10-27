@@ -4,15 +4,15 @@ import { useCallback } from 'react'
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
 export function useApi() {
-  const { token } = useAuth()
+  const { token, logout } = useAuth()
 
   const apiCall = useCallback(async (url: string, options?: RequestInit) => {
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options?.headers
+      ...(options?.headers as Record<string, string>)
     }
 
-    if (token) {
+    if (token && token !== 'undefined' && token !== 'null') {
       headers['Authorization'] = `Bearer ${token}`
     }
 
@@ -22,12 +22,16 @@ export function useApi() {
     })
 
     if (!response.ok) {
+      if (response.status === 401) {
+        console.warn('API returned 401 Unauthorized — clearing stale session')
+        logout()
+      }
       const errorData = await response.json().catch(() => ({}))
       throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
     }
 
     return await response.json()
-  }, [token])
+  }, [token, logout])
 
   return {
     // Meals API

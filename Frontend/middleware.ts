@@ -19,24 +19,33 @@ const authRoutes = ['/login', '/signup']
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
-  // FIX 1: Check for cookie named 'token' (matches AuthContext)
-  const token = request.cookies.get('token')?.value || 
-                request.headers.get('authorization')?.replace('Bearer ', '')
+  // Validate that token exists and is not a corrupted "undefined" or "null" string
+  const rawToken = request.cookies.get('token')?.value || 
+                   request.headers.get('authorization')?.replace('Bearer ', '')
+  const isValidToken = Boolean(
+    rawToken && 
+    rawToken !== 'undefined' && 
+    rawToken !== 'null' && 
+    rawToken.trim().length > 10
+  )
   
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
   const isAuthRoute = authRoutes.includes(pathname)
   
-  // 1. If accessing a protected route WITHOUT a token -> Redirect to Login
-  if (isProtectedRoute && !token) {
+  // 1. If accessing a protected route WITHOUT a valid token -> Redirect to Login
+  if (isProtectedRoute && !isValidToken) {
     const loginUrl = new URL('/login', request.url)
-    // Optional: Keep the URL they tried to visit so they go back after login
-    // loginUrl.searchParams.set('redirect', pathname) 
-    return NextResponse.redirect(loginUrl)
+    const response = NextResponse.redirect(loginUrl)
+    // Clear corrupted/empty token cookie to prevent loops
+    if (rawToken && !isValidToken) {
+      response.cookies.delete('token')
+    }
+    return response
   }
   
-  // FIX 2: If accessing Login/Signup page AND token exists -> Redirect to Dashboard
-  // We check isAuthRoute AND token separately to avoid operator precedence bugs
-  if (isAuthRoute && token) {
+  // 2. If accessing Login/Signup page AND has a valid token -> Only redirect to Dashboard
+  // if NOT explicitly redirected back by the client (prevents client-server ping-pong loops)
+  if (isAuthRoute && isValidToken && !request.nextUrl.searchParams.has('redirect')) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
   
